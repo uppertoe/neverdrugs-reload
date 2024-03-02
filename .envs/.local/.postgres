@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=anaesthesia_never_drugs
+POSTGRES_USER=tcTCsuKcpFyvgWShHBhtHnZxZdDqgRZO
+POSTGRES_PASSWORD=YhqPMtAMHEcQVLcn7VQjnc2e6wJuSZrR0ODadSCdbVzko2i9iDMwlg5N5KWeUV75
