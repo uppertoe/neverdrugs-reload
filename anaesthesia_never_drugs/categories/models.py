@@ -50,6 +50,14 @@ class Drug(models.Model):
     name = models.CharField(max_length=255)
     atc_category = models.ManyToManyField(ChemicalSubstance, through='DrugCategory')
 
+    def get_related_drugs(self):
+        # Find drugs related to the same categories as this drug, excluding the current drug
+        related_drugs = Drug.objects.filter(
+            atc_category__in=self.atc_category.all()
+        ).distinct().exclude(id=self.id)
+
+        return related_drugs
+
     def __str__(self):
         return self.name
 
@@ -62,7 +70,7 @@ class DrugCategory(models.Model):
         return f'{self.category}: {self.drug}'
 
 
-class AliasSource(models.Model):
+class Source(models.Model):
     name = models.CharField(max_length=255)
     url = models.URLField(max_length=255)
 
@@ -72,7 +80,7 @@ class AliasSource(models.Model):
 
 class DrugAlias(models.Model):
     name = models.CharField(max_length=255)
-    source = models.ForeignKey(AliasSource, on_delete=models.CASCADE)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
     drug = models.ForeignKey(Drug, on_delete=models.CASCADE)
 
     def __str__(self):
