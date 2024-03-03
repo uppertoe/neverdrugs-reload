@@ -9,6 +9,15 @@ from collections import defaultdict
 url = 'https://api.fda.gov/download.json'
 
 def get_latest_json_path(url):
+    """
+    Fetches the latest JSON file paths for FDA drug data from a given URL.
+    
+    Parameters:
+    - url (str): URL to fetch the download paths from.
+    
+    Returns:
+    - dict: A dictionary containing the parts of the JSON to download and the export date.
+    """
     with requests.get(url) as r:
         r.raise_for_status()
         download = r.json()
@@ -23,10 +32,30 @@ def get_latest_json_path(url):
     return download_paths
 
 def check_export_date(exported):
+    """
+    Checks if the exported date is more recent than today.
+    
+    Parameters:
+    - exported (str): The export date as a string in 'YYYY-MM-DD' format.
+    
+    Returns:
+    - bool: True if the exported date is after the last recorded input, False otherwise.
+    """
     exported_date = datetime.strptime(exported, '%Y-%m-%d')
     return exported_date > datetime.today()  # TODO: implement proper check
 
 def stream_file_to_disk(url, directory, filename=None):
+    """
+    Streams a file from a URL to disk, saving it in the specified directory with an optional filename.
+    
+    Parameters:
+    - url (str): The URL of the file to download.
+    - directory (str): The directory where the file should be saved.
+    - filename (str, optional): The name of the file. If None, the filename is derived from the URL.
+    
+    Returns:
+    - str: The path to the downloaded file.
+    """
     if filename is None:
         filename = url.split('/')[-1]  # Default to the last segment of the URL if no filename is provided
     
@@ -42,6 +71,15 @@ def stream_file_to_disk(url, directory, filename=None):
     return path
 
 def unzip_files_to_disk(path):
+    """
+    Extracts a ZIP file to the same directory where the ZIP file is located.
+    
+    Parameters:
+    - path (str): The path to the ZIP file.
+    
+    Returns:
+    - list: A list of paths to the extracted files.
+    """
     directory = os.path.dirname(path)
     extracted_paths = []
     
@@ -53,6 +91,15 @@ def unzip_files_to_disk(path):
     return extracted_paths
 
 def stream_process_trade_names(file_path):
+    """
+    Processes a given JSON file to extract drug names and their trade names.
+    
+    Parameters:
+    - file_path (str): The path to the JSON file.
+    
+    Returns:
+    - defaultdict(set): A dictionary where keys are generic drug names and values are sets of trade names.
+    """
     products_dict = defaultdict(set)
     with open(file_path, 'rb') as f:  # Note 'rb' for binary mode, required by ijson
         # Assuming the structure is: {"results": [{"openfda": {"generic_name": [...], "brand_name": [...]}}]}
@@ -64,6 +111,15 @@ def stream_process_trade_names(file_path):
     return products_dict
 
 def merge_product_dicts(product_dicts_list):
+    """
+    Merges a list of product dictionaries into a single dictionary.
+    
+    Parameters:
+    - product_dicts_list (list): A list of dictionaries to merge.
+    
+    Returns:
+    - defaultdict(set): A single dictionary containing all unique generic names and their associated trade names.
+    """
     final_products_dict = defaultdict(set)
     for product_dict in product_dicts_list:
         if product_dict:  # Ensure plist is not None
@@ -72,7 +128,15 @@ def merge_product_dicts(product_dicts_list):
     return final_products_dict
 
 def download_extract_process(download_paths):
-
+    """
+    Orchestrates the downloading, extracting, and processing of drug data based on provided paths.
+    
+    Parameters:
+    - download_paths (dict): A dictionary containing the URLs (parts) of the JSON files to download and process.
+    
+    Returns:
+    - defaultdict(set): A dictionary of processed drug names and their trade names.
+    """
     if not check_export_date(download_paths['exported']):
         return
     

@@ -62,7 +62,7 @@ def scrape_atc(atc_code):
 
 # Filter the results
 
-def split_by_multiple_delimiters(text, delimiters):
+def _split_by_multiple_delimiters(text, delimiters):
     '''
     Uses a regex to split text by a delimiter in a list of strings
     Returns a list of strings
@@ -86,7 +86,7 @@ def process_drug_name(names):
     blacklist = [item.lower() for item in filters.blacklist]
     
     # Split into individual drug names
-    split_text = split_by_multiple_delimiters(names, filters.delimiters)
+    split_text = _split_by_multiple_delimiters(names, filters.delimiters)
     
     # Filter resulting strings
     filtered_names = []
