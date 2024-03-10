@@ -8,7 +8,7 @@ celery==5.3.6  # pyup: < 6.0  # https://github.com/celery/celery
 django-celery-beat==2.5.0  # https://github.com/celery/django-celery-beat
 flower==2.0.1  # https://github.com/mher/flower
 requests==2.31.0  # https://github.com/psf/requests
-beautifulsoup4==4.13.0  # https://git.launchpad.net/beautifulsoup
+beautifulsoup4==4.12.3  # https://git.launchpad.net/beautifulsoup
 lxml==5.1.0  # https://github.com/lxml/lxml
 ijson==3.2.3  # https://github.com/ICRAR/ijson
 
