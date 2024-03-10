@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 
 
-class CoreConfig(AppConfig):
+class CoreAppConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "core"
+    name = "anaesthesia_never_drugs.core"
 
     def ready(self):
-        import core.signals
+        from . import signals

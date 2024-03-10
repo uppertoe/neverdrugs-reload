@@ -8,7 +8,6 @@ from . import filters
 
 # Scrape the Anatomical Therapeutic Chemical Classification
 
-ATC_ROOTS = ('A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V')
 atc_levels = {1: 1, 3: 2, 4: 3, 5: 4, 7: 5}  # len(atc_code):level
 
 session = requests.Session()  # Initialise a session to re-use TCP connections

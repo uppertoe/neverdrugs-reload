@@ -16,7 +16,8 @@ class AtcImport(models.Model):
         return cls.objects.filter(active=True).order_by('-timestamp').first()
     
     def increment_element_inserted_count(self):
-        self.update(elements_inserted=F('elements_inserted')+1)
+        self.elements_inserted = F('elements_inserted')+1
+        self.save()
     
     def save(self, *args, **kwargs):
         with transaction.atomic():  # Ensure either both or neither operations proceed
@@ -34,9 +35,9 @@ class FdaImport(models.Model):
 
 
 class WhoAtc(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True)
     code = models.CharField(max_length=7, db_index=True)
-    atc_import = models.ForeignKey(on_delete=models.CASCADE, related_name="%(class)ss")
+    atc_import = models.ForeignKey(AtcImport, on_delete=models.CASCADE, related_name="%(class)ss")
     searchable = models.BooleanField(default=True)
 
     def get_search_index_data(self):
@@ -63,23 +64,43 @@ class WhoAtc(models.Model):
 
 
 class AnatomicalMainGroup(WhoAtc):
-    pass
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'atc_import'], name='unique_anatomical_main_group')
+        ]
 
 
 class TherapeuticMainGroup(WhoAtc):
-    parent = models.ForeignKey(AnatomicalMainGroup, on_delete=models.CASCADE)
-
+    parent = models.ForeignKey(AnatomicalMainGroup, on_delete=models.CASCADE, null=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'atc_import'], name='unique_therapeutic_main_group')
+        ]
 
 class TherapeuticPharmacologicalSubgroup(WhoAtc):
-    parent = models.ForeignKey(TherapeuticMainGroup, on_delete=models.CASCADE)
-
+    parent = models.ForeignKey(TherapeuticMainGroup, on_delete=models.CASCADE, null=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'atc_import'], name='unique_therapeutic_pharmacological_subgroup')
+        ]
 
 class ChemicalTherapeuticPharmacologicalSubgroup(WhoAtc):
-    parent = models.ForeignKey(TherapeuticPharmacologicalSubgroup, on_delete=models.CASCADE)
-
+    parent = models.ForeignKey(TherapeuticPharmacologicalSubgroup, on_delete=models.CASCADE, null=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'atc_import'], name='unique_chemical_therapeutic_pharmacological_subgroup')
+        ]
 
 class ChemicalSubstance(WhoAtc):
-    parent = models.ForeignKey(ChemicalTherapeuticPharmacologicalSubgroup, on_delete=models.CASCADE)
+    parent = models.ForeignKey(ChemicalTherapeuticPharmacologicalSubgroup, on_delete=models.CASCADE, null=True)
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'atc_import'], name='unique_chemical_substance')
+        ]
 
     @classmethod
     def create_drug_batches(cls, batch_size=50):

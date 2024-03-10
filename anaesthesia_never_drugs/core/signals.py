@@ -8,7 +8,7 @@ from .tasks import update_search_vector
 
 # Not called on bulk create/update
 def update_or_create_index(sender, instance, **kwargs):
-    search_index_instance, _ = SearchIndex.get_or_create_index(instance)
+    search_index_instance, _ = SearchIndex.update_or_create_index(instance)
     update_search_vector.delay(search_index_instance.pk)
 
 # Called on bulk delete
