@@ -33,7 +33,7 @@ def get_latest_json_path(url):
 
 def check_export_date(exported):
     """
-    Checks if the exported date is more recent than today.
+    Checks if the exported date is more recent than existing data.
     
     Parameters:
     - exported (str): The export date as a string in 'YYYY-MM-DD' format.

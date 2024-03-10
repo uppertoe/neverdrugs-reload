@@ -81,7 +81,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "anaesthesia_never_drugs.users",
-    "anaesthesia_never_drugs.categories.apps.CategoriesAppConfig",
+    "anaesthesia_never_drugs.core.apps.CoreAppConfig",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

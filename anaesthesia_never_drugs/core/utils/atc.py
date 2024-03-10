@@ -8,11 +8,31 @@ from . import filters
 
 # Scrape the Anatomical Therapeutic Chemical Classification
 
-atc_roots = ('A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V')
+ATC_ROOTS = ('A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V')
+atc_levels = {1: 1, 3: 2, 4: 3, 5: 4, 7: 5}  # len(atc_code):level
 
-# Initialise a session to re-use TCP connections
-session = requests.Session()
+session = requests.Session()  # Initialise a session to re-use TCP connections
 crawl_delay = 1
+
+
+def scrape_atc_roots():
+    web_address = 'https://atcddd.fhi.no/atc_ddd_index/'
+    response = session.get(web_address)
+
+    only_id_content = SoupStrainer(id='content')
+    soup = BeautifulSoup(response.content, 'lxml', parse_only=only_id_content)
+    links = soup.find_all('a')[:-2]
+    
+    roots = {}
+    for link in links:
+        parsed_url = urlparse(link['href'])
+        query_params = parse_qs(parsed_url.query)
+        atc_code = query_params.get('code', [None])[0]
+        link_text = link.get_text(strip=True)
+        roots[atc_code] = link_text
+    
+    return roots
+
 
 def scrape_atc(atc_code):
     '''
@@ -20,7 +40,6 @@ def scrape_atc(atc_code):
     Yields a dictionary per entry in each level of the hierarchy processed
     '''
     # Check the current recursion level
-    atc_levels = {1: 1, 3: 2, 4: 3, 5: 4, 7: 5}  # len(atc_code):level
     level = atc_levels.get(len(atc_code))
     
     if not level:
@@ -32,6 +51,7 @@ def scrape_atc(atc_code):
     
     web_address = f'https://atcddd.fhi.no/atc_ddd_index/?code={atc_code}&showdescription=no'
     response = session.get(web_address)
+    
     # Implement crawl delay
     time.sleep(crawl_delay)
     
@@ -45,9 +65,9 @@ def scrape_atc(atc_code):
         query_params = parse_qs(parsed_url.query)
         child_atc_code = query_params.get('code', [None])[0]
         
-        if child_atc_code and len(child_atc_code) > len(atc_code):  # Recursion stops
+        if child_atc_code and len(child_atc_code) > len(atc_code):  # Else recursion stops
             child_level = atc_levels.get(len(child_atc_code))
-            link_text = link.get_text(strip=True)  # Ensure names are properly capitalized and stripped
+            link_text = link.get_text(strip=True)  # Ensure names are properly stripped
             child_dict = {
                 'code': child_atc_code,
                 'level': child_level,
@@ -59,6 +79,7 @@ def scrape_atc(atc_code):
             
             # Recursively yield from child ATC codes
             yield from scrape_atc(child_atc_code)
+
 
 # Filter the results
 
