@@ -127,7 +127,7 @@ def merge_product_dicts(product_dicts_list):
                 final_products_dict[generic].update(brands)
     return final_products_dict
 
-def download_extract_process(download_paths):
+def orchestrate_fda_products_download(download_paths):
     """
     Orchestrates the downloading, extracting, and processing of drug data based on provided paths.
     

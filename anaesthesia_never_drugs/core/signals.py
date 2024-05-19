@@ -1,10 +1,16 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from django.apps import apps
 
 from .models.search import SearchIndex
 from .tasks import update_search_vector
 
+from .models.classifications import AtcImport, ChemicalSubstance
+
+'''
+Maintain SearchIndex
+'''
 
 # Not called on bulk create/update
 def update_or_create_index(sender, instance, **kwargs):
@@ -21,3 +27,14 @@ for model_label in SearchIndex.INDEXED_MODELS:
     model = apps.get_model(model_label)
     post_save.connect(update_or_create_index, sender=model)
     post_delete.connect(update_search_index_on_delete, sender=model)
+
+
+'''
+Keep Drug up to date with current ChemicalSubstance
+'''
+# Create or update Drug for each ChemicalSubstance
+@receiver(post_save, sender=ChemicalSubstance)
+def create_or_update_drug_on_chemical_substance_save(sender, instance, **kwargs):
+    # Only proceed if this is the latest AtcImport
+    if instance.atc_import == AtcImport.get_latest_import():
+        instance.create_or_update_drug()

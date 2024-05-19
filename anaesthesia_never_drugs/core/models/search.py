@@ -6,7 +6,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 
 class SearchIndex(models.Model):
     # Indexed models should implement get_search_index_data
-    INDEXED_MODELS = {'core.ChemicalSubstance', 'core.Drug', 'core.DrugAlias'}
+    INDEXED_MODELS = {'core.Drug', 'core.DrugAlias'}
 
     name = models.CharField(max_length=255)
     content = models.TextField(null=True, blank=True)

@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.db.models import F
-
+from django.utils import timezone
+from django.core.cache import cache
 
 # Implementation of the Anatomical Therapeutic Chemical (ATC) Classification System
 
@@ -13,25 +14,51 @@ class AtcImport(models.Model):
 
     @classmethod
     def get_latest_import(cls):
-        return cls.objects.filter(active=True).order_by('-timestamp').first()
+        # Cached as may be frequently called with bulk updates
+        cache_key = f'{cls.__name__}_get_latest_import'
+        result = cache.get(cache_key)
+
+        if result is None:
+            result = cls.objects.filter(active=True).order_by('-timestamp').first()
+            if result:
+                cache.set(cache_key, result, 60*5)  # Cache for 5 minutes
+        
+        return result
+    
+    @classmethod
+    def invalidate_get_latest_import_cache(cls):
+        cache_key = f'{cls.__name__}_get_latest_import' 
+        cache.delete(cache_key)
     
     def increment_element_inserted_count(self):
         self.elements_inserted = F('elements_inserted')+1
         self.save()
+
+    def trigger_drug_updates(self):
+        # Update Drug objects associated with this AtcImport
+        from ..tasks import dispatch_update_drug_objects
+        dispatch_update_drug_objects.delay(self.id)
     
     def save(self, *args, **kwargs):
         with transaction.atomic():  # Ensure either both or neither operations proceed
             if self.active:  # Ensure only 1 active AtcImport
                 AtcImport.objects.exclude(pk=self.pk).update(active=False)
+                self.trigger_drug_updates()
+            self.invalidate_get_latest_import_cache()
             super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.timestamp.strftime('%d-%m-%Y')
+        local_timestamp = self.timestamp.astimezone(timezone.get_current_timezone())
+        return local_timestamp.strftime('%d-%m-%Y %T')
 
 
 class FdaImport(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     drug_aliases_inserted = models.IntegerField(default=0)
+
+    def increment_drug_aliases_inserted(self):
+        # Use an F query to avoid race conditions
+        pass
 
 
 class WhoAtc(models.Model):
@@ -110,3 +137,20 @@ class ChemicalSubstance(WhoAtc):
         for start in range(0, total, batch_size):
             end = min(start + batch_size, total)
             yield queryset[start:end]
+
+    def create_or_update_drug(self):
+        from .drugs import Drug
+
+        # Filter by name (case insensitive)
+        drugs = Drug.objects.filter(name__iexact=self.name.lower())
+
+        # Account for multiple matches
+        if drugs.exists():
+            for drug in drugs:
+                # Add current category
+                drug.atc_category.add(self)
+        else:
+            # Create a new drug if none exists
+            drug = Drug.objects.create(name=self.name)
+            drug.atc_category.add(self)
+

@@ -28,7 +28,8 @@ class Drug(models.Model):
 
 class DrugCategory(models.Model):
     drug = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='drug_categories')
-    category = models.ForeignKey(classifications.ChemicalSubstance, on_delete=models.CASCADE, related_name='drug_categories')
+    # Ensure ChemicalSubstances pointing to a drug are not deleted
+    category = models.ForeignKey(classifications.ChemicalSubstance, on_delete=models.PROTECT, related_name='drug_categories')
 
     def __str__(self):
         return f'{self.category}: {self.drug}'

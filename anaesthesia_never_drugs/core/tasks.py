@@ -3,9 +3,13 @@ from django.contrib.postgres.search import SearchVector
 from django.db import transaction, OperationalError
 
 from .utils.atc import scrape_atc, scrape_atc_roots
-from .models.classifications import AtcImport, WhoAtc
+from .utils.fda import orchestrate_fda_products_download
+from .utils.helpers import chunk_queryset, chunk_generator
+from .models.classifications import AtcImport, WhoAtc, FdaImport, ChemicalSubstance
 from .models.search import SearchIndex
 from .forms.drugs import FORMS_BY_LEVEL
+
+'''Search Index'''
 
 @celery_app.task
 def update_search_vector(search_index_pk):
@@ -16,18 +20,8 @@ def update_search_vector(search_index_pk):
         )
     )
 
-def chunk_generator(generator, chunk_size=20):
-    chunk=[]
-    for item in generator:
-        print(item)
-        chunk.append(item)
-        if len(chunk) >= chunk_size:
-            yield chunk
-            chunk = []
 
-    # If elements remaining smaller than chunk size
-    if chunk:
-        yield chunk
+'''WHO ATC scraping'''
 
 @celery_app.task(time_limit=60*60*2, soft_time_limit=59*60*2)
 def import_who_atc():
@@ -76,3 +70,41 @@ def process_atc_chunk(chunk, atc_import_pk, root_name):
                     errors.extend(form.errors)
     
     return errors
+
+
+'''Drug model updating'''
+@celery_app.task()
+def process_drug_chunk(chemical_substance_ids):
+    for chemical_substance_id in chemical_substance_ids:
+        try:
+            chemical_substance = ChemicalSubstance.objects.get(id=chemical_substance_id)
+            chemical_substance.create_or_update_drug()
+        except ChemicalSubstance.DoesNotExist:
+            continue
+
+@celery_app.task(retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
+def dispatch_update_drug_objects(atc_import_pk, chunk_size=100):
+    atc_import = AtcImport.objects.get(pk=atc_import_pk)
+    drugs_to_update = ChemicalSubstance.objects.filter(atc_import=atc_import)
+
+    for chunk in chunk_queryset(drugs_to_update, chunk_size):
+        process_drug_chunk.delay(chunk)
+
+
+
+'''FDA drug aliases'''
+
+# Create an FdaImport
+# Receive a dictionary in the form generic:{brands,}
+# Chunk the results for batch processing
+# Filter Drugs by the generic name
+# If a brand does not exist, create a DrugAlias
+# Increment FdaImport.drug_alises_imported
+
+@celery_app.task()
+def import_fda_aliases():
+    fda_import = FdaImport.objects.create()
+    products_dict = orchestrate_fda_products_download()  # Approx 15 seconds
+
+    # Drug names have already been filtered
+
