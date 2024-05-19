@@ -7,6 +7,7 @@ from .models.search import SearchIndex
 from .tasks import update_search_vector
 
 from .models.classifications import AtcImport, ChemicalSubstance
+from .models.conditions import OrphaEntry, Condition, OrphaImport
 
 '''
 Maintain SearchIndex
@@ -38,3 +39,14 @@ def create_or_update_drug_on_chemical_substance_save(sender, instance, **kwargs)
     # Only proceed if this is the latest AtcImport
     if instance.atc_import == AtcImport.get_latest_import():
         instance.create_or_update_drug()
+
+
+'''
+Keep Condition up to date with current OrphaEntry
+'''
+# Create or update Condition for each OrphaEntry
+@receiver(post_save, sender=OrphaEntry)
+def create_or_update_condition_on_orpha_entry_save(sender, instance, **kwargs):
+    # Only proceed if this is the latest OrphaImport
+    if instance.orpha_import == OrphaImport.get_latest_import():
+        instance.create_or_update_condition()

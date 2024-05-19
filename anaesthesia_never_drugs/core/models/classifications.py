@@ -37,7 +37,7 @@ class AtcImport(models.Model):
     def trigger_drug_updates(self):
         # Update Drug objects associated with this AtcImport
         from ..tasks import dispatch_update_drug_objects
-        dispatch_update_drug_objects.delay(self.id)
+        dispatch_update_drug_objects.delay(self.pk)
     
     def save(self, *args, **kwargs):
         with transaction.atomic():  # Ensure either both or neither operations proceed

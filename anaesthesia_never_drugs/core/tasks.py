@@ -4,10 +4,13 @@ from django.db import transaction, OperationalError
 
 from .utils.atc import scrape_atc, scrape_atc_roots
 from .utils.fda import orchestrate_fda_products_download
-from .utils.helpers import chunk_queryset, chunk_generator
+from .utils.orphanet import get_latest_orphanet_json, unpack_orphanet_json_entry
+from .utils.helpers import chunk_queryset, chunk_generator, iterable_batch_generator
 from .models.classifications import AtcImport, WhoAtc, FdaImport, ChemicalSubstance
+from .models.conditions import OrphaImport, Condition, OrphaEntry
 from .models.search import SearchIndex
 from .forms.drugs import FORMS_BY_LEVEL
+from .forms.conditions import OrphaEntryForm
 
 '''Search Index'''
 
@@ -90,6 +93,62 @@ def dispatch_update_drug_objects(atc_import_pk, chunk_size=100):
     for chunk in chunk_queryset(drugs_to_update, chunk_size):
         process_drug_chunk.delay(chunk)
 
+'''Orphanet'''
+
+@celery_app.task()
+def process_orphanet_batch(batch, orpha_import_pk):
+    errors = []
+
+    # Get current OrphaImport
+    orpha_import_instance = OrphaImport.objects.get(pk=orpha_import_pk)
+
+    # Iterate over the batch
+    for condition in batch:
+        form = OrphaEntryForm(
+            unpack_orphanet_json_entry(condition),
+            orpha_import_instance=orpha_import_instance,
+        )
+
+        if form.is_valid():
+            form.save()
+            orpha_import_instance.increment_element_inserted_count()
+        else:
+            errors.extend(form.errors)
+    
+    return errors
+
+@celery_app.task(autoretry_for=(OperationalError,), retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
+def dispatch_orphanet_imports():
+    # Download the latest JSON
+    orphanet_json = get_latest_orphanet_json()
+    
+    # Record the target number of entries
+    element_count = len(orphanet_json)
+
+    # Create a new OrphaImport
+    orpha_import = OrphaImport.objects.create(active=False, element_count=element_count)
+
+    # Create the batches
+    for batch in iterable_batch_generator(orphanet_json, batch_size=50):
+        process_orphanet_batch.delay(batch, orpha_import.pk)
+        
+'''Condition model updating'''
+@celery_app.task()
+def process_condition_chunk(orpha_entry_ids):
+    for orpha_entry_id in orpha_entry_ids:
+        try:
+            orpha_entry = OrphaEntry.objects.get(id=orpha_entry_id)
+            orpha_entry.create_or_update_condition()
+        except OrphaEntry.DoesNotExist:
+            continue
+
+@celery_app.task(retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
+def dispatch_update_condition_objects(orpha_import_pk, chunk_size=100):
+    orpha_import = OrphaImport.objects.get(pk=orpha_import_pk)
+    conditions_to_update = OrphaEntry.objects.filter(orpha_import=orpha_import)
+
+    for chunk in chunk_queryset(conditions_to_update, chunk_size):
+        process_condition_chunk.delay(chunk)
 
 
 '''FDA drug aliases'''

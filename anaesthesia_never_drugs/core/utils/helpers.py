@@ -27,3 +27,8 @@ def chunk_generator(generator, chunk_size=20):
     # If elements remaining smaller than chunk size
     if chunk:
         yield chunk
+
+
+def iterable_batch_generator(data, batch_size=50):
+    for i in range(0, len(data), batch_size):
+        yield data[i:i+batch_size]  # Python gracefully handles out-of-bounds indices

@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models.classifications import AtcImport, AnatomicalMainGroup, TherapeuticMainGroup, TherapeuticPharmacologicalSubgroup, ChemicalTherapeuticPharmacologicalSubgroup, ChemicalSubstance
 from .models.search import SearchIndex
 from .models.drugs import Drug, DrugCategory, Source, DrugAlias
+from .models.conditions import OrphaImport, Condition, ConditionSynonym, ConditionOrphaCategory, OrphaCategory, OrphaEntry
 
 @admin.register(AtcImport)
 class AtcImportAdmin(admin.ModelAdmin):
@@ -51,4 +52,16 @@ class SourceAdmin(admin.ModelAdmin):
 
 @admin.register(DrugAlias)
 class DrugAliasAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(OrphaImport)
+class OrphaImportAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Condition)
+class ConditionAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(OrphaEntry)
+class OrphaEntryAdmin(admin.ModelAdmin):
     pass

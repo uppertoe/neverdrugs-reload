@@ -17,6 +17,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # Local URLs
     path("scrape/", views.scrape),
+    path("orpha/", views.scrape_orphanet),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
