@@ -6,11 +6,12 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 
 class SearchIndex(models.Model):
     # Indexed models should implement get_search_index_data
-    INDEXED_MODELS = {'core.Drug', 'core.DrugAlias'}
+    INDEXED_MODELS = {'core.Drug', 'core.DrugAlias', 'core.Condition'}
 
     name = models.CharField(max_length=255)
     content = models.TextField(null=True, blank=True)
     search_vector = SearchVectorField(null=True)
+    search_vector_processed = models.BooleanField(default=False)  # Identifies records for processing
     updated_at = models.DateTimeField(auto_now=True)
     model_name = models.CharField(max_length=255, null=True, blank=True)  # For convenience
     searchable = models.BooleanField(default=False)
@@ -25,7 +26,7 @@ class SearchIndex(models.Model):
         verbose_name_plural = "search indices"
 
     @classmethod
-    def update_or_create_index(cls, related_object):        
+    def update_or_create_index(cls, related_object, search_vector_processed=False):        
         content_type = ContentType.objects.get_for_model(related_object)
         object_id = related_object.id
 
@@ -39,6 +40,7 @@ class SearchIndex(models.Model):
             'content': index_data.get('content', ''),
             'model_name': f"{content_type.app_label}.{content_type.model}",
             'searchable': index_data.get('searchable', False),
+            'search_vector_processed': search_vector_processed,
         }
 
         search_index, created = cls.objects.update_or_create(
@@ -60,4 +62,4 @@ class SearchIndex(models.Model):
         return results
 
     def __str__(self):
-        return f'{self.model_name} - {self.object_id}'
+        return f'{self.model_name} - {self.name}'

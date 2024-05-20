@@ -82,6 +82,12 @@ class Condition(models.Model):
     date_updated = models.DateTimeField()
     status = models.CharField(max_length=255)
     orpha_category = models.ManyToManyField('OrphaCategory', through='ConditionOrphaCategory')
+    searchable = models.BooleanField(default=True)
+
+    def get_search_index_data(self):
+        return {'name': self.name,
+                'content': self.description,
+                'searchable': self.searchable}
 
     def __str__(self):
         return self.name

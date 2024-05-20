@@ -1,6 +1,8 @@
 from config import celery_app
+from celery import chord
 from django.contrib.postgres.search import SearchVector
 from django.db import transaction, OperationalError
+import logging
 
 from .utils.atc import scrape_atc, scrape_atc_roots
 from .utils.fda import orchestrate_fda_products_download
@@ -12,16 +14,35 @@ from .models.search import SearchIndex
 from .forms.drugs import FORMS_BY_LEVEL
 from .forms.conditions import OrphaEntryForm
 
+logger = logging.getLogger(__name__)
+
 '''Search Index'''
 
-@celery_app.task
-def update_search_vector(search_index_pk):
-    SearchIndex.objects.filter(pk=search_index_pk).update(
-        search_vector=(
-            SearchVector('name', weight='A') +
-            SearchVector('content', weight='B')
+@celery_app.task()
+def update_search_vector(search_index_pks):
+    # Calculate the SearchVector for a given SearchIndex object
+    for search_index_pk in search_index_pks:
+        SearchIndex.objects.filter(pk=search_index_pk).update(
+            search_vector=(
+                SearchVector('name', weight='A') +
+                SearchVector('content', weight='B')
+            ),
+            search_vector_processed=True,
         )
-    )
+
+@celery_app.task()
+def dispatch_search_vector_updates(result):
+    # Log results of chained process
+    batch_count = len(result)
+    processed = sum(result)
+    logger.info(f'{batch_count} batches for {processed} objects updated')
+
+    objects_to_process = SearchIndex.objects.filter(search_vector_processed=False)
+    ids = list(objects_to_process.values_list('id', flat=True))
+    batches = iterable_batch_generator(ids, batch_size=100)
+
+    for batch in batches:
+        update_search_vector.delay(batch)
 
 
 '''WHO ATC scraping'''
@@ -78,20 +99,28 @@ def process_atc_chunk(chunk, atc_import_pk, root_name):
 '''Drug model updating'''
 @celery_app.task()
 def process_drug_chunk(chemical_substance_ids):
+    processed_count = 0
     for chemical_substance_id in chemical_substance_ids:
         try:
             chemical_substance = ChemicalSubstance.objects.get(id=chemical_substance_id)
             chemical_substance.create_or_update_drug()
+            processed_count += 1
         except ChemicalSubstance.DoesNotExist:
             continue
+    return processed_count  # Signal completion to the Chord
 
 @celery_app.task(retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
-def dispatch_update_drug_objects(atc_import_pk, chunk_size=100):
+def dispatch_update_drug_objects(atc_import_pk, batch_size=100):
     atc_import = AtcImport.objects.get(pk=atc_import_pk)
     drugs_to_update = ChemicalSubstance.objects.filter(atc_import=atc_import)
 
-    for chunk in chunk_queryset(drugs_to_update, chunk_size):
-        process_drug_chunk.delay(chunk)
+    # Create child tasks consisting of drugs to update
+    ids = list(drugs_to_update.values_list('id', flat=True))  # Evaluate queryset to prevent race conditions
+    batches = iterable_batch_generator(ids, batch_size)
+    child_tasks = [process_drug_chunk.s(batch) for batch in batches]
+
+    # Use a Chord to trigger the SearchIndex update once child tasks are complete
+    chord(child_tasks)(dispatch_search_vector_updates.s())
 
 '''Orphanet'''
 
@@ -135,21 +164,28 @@ def dispatch_orphanet_imports():
 '''Condition model updating'''
 @celery_app.task()
 def process_condition_chunk(orpha_entry_ids):
+    processed_count = 0
     for orpha_entry_id in orpha_entry_ids:
         try:
             orpha_entry = OrphaEntry.objects.get(id=orpha_entry_id)
             orpha_entry.create_or_update_condition()
+            processed_count += 1
         except OrphaEntry.DoesNotExist:
             continue
+    return processed_count  # Signal completion to the Chord
 
 @celery_app.task(retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
-def dispatch_update_condition_objects(orpha_import_pk, chunk_size=100):
+def dispatch_update_condition_objects(orpha_import_pk, batch_size=100):
     orpha_import = OrphaImport.objects.get(pk=orpha_import_pk)
     conditions_to_update = OrphaEntry.objects.filter(orpha_import=orpha_import)
 
-    for chunk in chunk_queryset(conditions_to_update, chunk_size):
-        process_condition_chunk.delay(chunk)
+    # Create child tasks consisting of drugs to update
+    ids = list(conditions_to_update.values_list('id', flat=True))  # Evaluate queryset to prevent race conditions
+    batches = iterable_batch_generator(ids, batch_size)
+    child_tasks = [process_condition_chunk.s(batch) for batch in batches]
 
+    # Use a Chord to trigger the SearchIndex update once child tasks are complete
+    chord(child_tasks)(dispatch_search_vector_updates.s())
 
 '''FDA drug aliases'''
 
