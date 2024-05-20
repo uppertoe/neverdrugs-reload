@@ -18,6 +18,7 @@ urlpatterns = [
     # Local URLs
     path("scrape/", views.scrape),
     path("orpha/", views.scrape_orphanet),
+    path("", include("anaesthesia_never_drugs.core.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

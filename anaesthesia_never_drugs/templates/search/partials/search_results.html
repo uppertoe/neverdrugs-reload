@@ -1,0 +1,17 @@
+<!-- partials/search_results.html -->
+<div id="results">
+    {% if results %}
+        <div class="list-group">
+            {% for result in results %}
+                <div class="result-item list-group-item">
+                    <h2>{{ result.name }}</h2>
+                    <p>{{ result.content }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No results found.
+        </div>
+    {% endif %}
+</div>

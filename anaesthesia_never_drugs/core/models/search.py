@@ -1,5 +1,6 @@
 from django.db import models
-from django.contrib.postgres.search import SearchVectorField, SearchQuery
+from django.db.models import Q
+from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchVector, SearchRank, TrigramSimilarity
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -58,7 +59,15 @@ class SearchIndex(models.Model):
     @staticmethod
     def search(query):
         search_query = SearchQuery(query, config='english')
-        results = SearchIndex.objects.filter(search_vector=search_query)
+        trigram_similarity = TrigramSimilarity('name', query)  # Adjust field1 to a relevant field for trigram
+
+        results = SearchIndex.objects.annotate(
+            rank=SearchRank('search_vector', search_query),
+            similarity=trigram_similarity
+        ).filter(
+            Q(rank__gte=0.1) | Q(similarity__gte=0.3)
+        ).order_by('-rank', '-similarity')
+        
         return results
 
     def __str__(self):

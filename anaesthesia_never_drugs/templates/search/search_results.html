@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://unpkg.com/htmx.org@1.6.1"></script>
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .result-item {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .result-item h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .result-item p {
+            margin: 0;
+            color: #6c757d;
+        }
+        .search-box {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">neverDrugs 2.0 Search</h1>
+        <div class="search-box form-inline">
+            <input type="text" name="q" class="form-control mr-2" placeholder="Search..." value="{{ request.GET.q }}" 
+                   hx-get="/search" hx-trigger="keyup changed delay:100ms" hx-target="#results" hx-swap="innerHTML">
+        </div>
+        <div id="results">
+            {% if results %}
+                <div class="list-group">
+                    {% for result in results %}
+                        <div class="result-item list-group-item">
+                            <h2>{{ result.name }}</h2>
+                            <p>{{ result.content }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No results found.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
