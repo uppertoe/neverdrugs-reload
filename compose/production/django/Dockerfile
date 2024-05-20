@@ -4,9 +4,9 @@ ARG APP_HOME=/app
 WORKDIR ${APP_HOME}
 
 COPY ./package.json ${APP_HOME}
-RUN npm install && npm cache clean --force
+RUN yarn install && yarn cache clean --force
 COPY . ${APP_HOME}
-RUN npm run build
+RUN yarn run build
 # define an alias for the specific python version used in this file.
 FROM docker.io/python:3.11.8-slim-bookworm as python
 
