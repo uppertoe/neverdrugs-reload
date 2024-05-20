@@ -4,11 +4,10 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
-
-from anaesthesia_never_drugs.core import views
+from django.views.generic.base import RedirectView
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
+    path("", RedirectView.as_view(url='/search', permanent=False)),
     path("about/", TemplateView.as_view(template_name="pages/about.html"), name="about"),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
@@ -16,8 +15,6 @@ urlpatterns = [
     path("users/", include("anaesthesia_never_drugs.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     # Local URLs
-    path("scrape/", views.scrape),
-    path("orpha/", views.scrape_orphanet),
     path("", include("anaesthesia_never_drugs.core.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

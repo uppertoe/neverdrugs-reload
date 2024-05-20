@@ -84,7 +84,7 @@ class WhoAtc(models.Model):
         return models.get(level)
     
     def __str__(self):
-        return f'{self.code}: {self.name}'
+        return f'{self.name} - ATC code {self.code}'
 
     class Meta:
         abstract = True
@@ -153,4 +153,7 @@ class ChemicalSubstance(WhoAtc):
             # Create a new drug if none exists
             drug = Drug.objects.create(name=self.name)
             drug.atc_category.add(self)
+
+    def __str__(self):
+        return f'{self.name} - ATC code {self.code}'
 
