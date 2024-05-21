@@ -95,8 +95,9 @@ STORAGES = {
     },
 }
 MEDIA_URL = f"https://{aws_s3_domain}/media/"
-COLLECTFAST_STRATEGY = "collectfast.strategies.boto3.Boto3Strategy"
+#COLLECTFAST_STRATEGY = "collectfast.strategies.boto3.Boto3Strategy"
 # Use local static with whitenoise
+STATIC_URL = f"/static/"
 #STATIC_URL = f"https://{aws_s3_domain}/static/"
 
 # EMAIL
@@ -162,6 +163,11 @@ LOGGING = {
         "sentry_sdk": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {
             "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "celery": {
+            "level": "DEBUG",
             "handlers": ["console"],
             "propagate": False,
         },
