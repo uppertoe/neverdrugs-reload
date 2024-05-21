@@ -1,7 +1,6 @@
 from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseNotAllowed
+from django.http import HttpResponseNotAllowed
 
-from .tasks import import_who_atc, dispatch_orphanet_imports
 from .models.search import SearchIndex
 
 

@@ -138,6 +138,11 @@ class ChemicalSubstance(WhoAtc):
             end = min(start + batch_size, total)
             yield queryset[start:end]
 
+    @staticmethod
+    def _update_search_index(drug):
+        from .search import SearchIndex
+        SearchIndex.update_or_create_index(drug, search_vector_processed=False)
+
     def create_or_update_drug(self):
         from .drugs import Drug
 
@@ -149,10 +154,17 @@ class ChemicalSubstance(WhoAtc):
             for drug in drugs:
                 # Add current category
                 drug.atc_category.add(self)
+                
+                # Required as M2M adds do not call save() and signals are not triggered
+                self._update_search_index(drug)
+
         else:
             # Create a new drug if none exists
             drug = Drug.objects.create(name=self.name)
             drug.atc_category.add(self)
+            
+            # Required as M2M adds do not call save() and signals are not triggered
+            self._update_search_index(drug)
 
     def __str__(self):
         return f'{self.name} - ATC code {self.code}'

@@ -17,9 +17,16 @@ class Drug(models.Model):
 
         return related_drugs
     
+    def get_categories(self):
+        content = []
+        for category in self.atc_category.all():
+            content.append(str(category.parent))
+        return ', '.join(content)
+    
     def get_search_index_data(self):
+
         return {'name': self.name,
-                'content': '',
+                'content': self.get_categories(),
                 'searchable': self.searchable}
 
     def __str__(self):
