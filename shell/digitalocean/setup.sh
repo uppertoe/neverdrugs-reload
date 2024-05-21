@@ -36,3 +36,6 @@ chmod +x ~/.docker/cli-plugins/docker-compose
 
 # Check the version
 docker compose version
+
+# Set overcommit to 1 for Redis
+echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf
