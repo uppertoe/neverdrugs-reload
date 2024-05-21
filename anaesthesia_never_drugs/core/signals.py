@@ -40,8 +40,10 @@ Keep Drug up to date with current ChemicalSubstance
 @receiver(post_save, sender=ChemicalSubstance)
 def create_or_update_drug_on_chemical_substance_save(sender, instance, **kwargs):
     # Only proceed if this is the latest AtcImport
+    logger.info(f'Considering drug creation for {instance}')
     if instance.atc_import == AtcImport.get_latest_import():
         instance.create_or_update_drug()
+        logger.info(f'Drug created: {instance}')
 
 
 '''

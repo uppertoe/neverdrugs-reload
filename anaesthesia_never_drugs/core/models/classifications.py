@@ -2,6 +2,9 @@ from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 from django.core.cache import cache
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Implementation of the Anatomical Therapeutic Chemical (ATC) Classification System
 
@@ -11,7 +14,7 @@ class AtcImport(models.Model):
     elements_inserted = models.PositiveIntegerField(default=0)
     drugs_inserted = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=False)
-
+    
     @classmethod
     def get_latest_import(cls):
         # Cached as may be frequently called with bulk updates
@@ -19,9 +22,13 @@ class AtcImport(models.Model):
         result = cache.get(cache_key)
 
         if result is None:
+            logger.info(f'Cache miss for {cache_key}')
             result = cls.objects.filter(active=True).order_by('-timestamp').first()
             if result:
                 cache.set(cache_key, result, 60*5)  # Cache for 5 minutes
+                logger.info(f'Cache set for {cache_key}')
+        else:
+            logger.info(f'Cache hit for {cache_key}')
         
         return result
     
@@ -29,6 +36,8 @@ class AtcImport(models.Model):
     def invalidate_get_latest_import_cache(cls):
         cache_key = f'{cls.__name__}_get_latest_import' 
         cache.delete(cache_key)
+        logger.info(f'Cache invalidated for {cache_key}')
+    
     
     def increment_element_inserted_count(self):
         self.elements_inserted = F('elements_inserted')+1
@@ -43,8 +52,9 @@ class AtcImport(models.Model):
         with transaction.atomic():  # Ensure either both or neither operations proceed
             if self.active:  # Ensure only 1 active AtcImport
                 AtcImport.objects.exclude(pk=self.pk).update(active=False)
+                self.invalidate_get_latest_import_cache()
                 self.trigger_drug_updates()
-            self.invalidate_get_latest_import_cache()
+
             super().save(*args, **kwargs)
 
     def __str__(self):
@@ -141,6 +151,7 @@ class ChemicalSubstance(WhoAtc):
     @staticmethod
     def _update_search_index(drug):
         from .search import SearchIndex
+        logger.info(f'Updating or creating index for {drug}')
         SearchIndex.update_or_create_index(drug, search_vector_processed=False)
 
     def create_or_update_drug(self):
