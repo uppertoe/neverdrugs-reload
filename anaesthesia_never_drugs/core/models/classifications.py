@@ -158,7 +158,9 @@ class ChemicalSubstance(WhoAtc):
         from .drugs import Drug
 
         # Filter by name (case insensitive)
-        drugs = Drug.objects.filter(name__iexact=self.name.lower())
+        drugs = Drug.objects.filter(name__iexact=self.name)
+        
+        logging.info(f'Matching drugs: {drugs}')
 
         # Account for multiple matches
         if drugs.exists():

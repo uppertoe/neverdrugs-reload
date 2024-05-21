@@ -102,7 +102,8 @@ def process_drug_chunk(chemical_substance_ids):
     processed_count = 0
     for chemical_substance_id in chemical_substance_ids:
         try:
-            chemical_substance = ChemicalSubstance.objects.get(id=chemical_substance_id)
+            chemical_substance = ChemicalSubstance.objects.get(pk=chemical_substance_id)
+            logging.info(f'Chemical substance being processed: {chemical_substance}')
             chemical_substance.create_or_update_drug()
             processed_count += 1
         except ChemicalSubstance.DoesNotExist:
