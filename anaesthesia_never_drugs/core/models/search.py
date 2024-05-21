@@ -35,8 +35,6 @@ class SearchIndex(models.Model):
         # Calls lambda: {} if get_search_index_data method does not exist
         index_data = getattr(related_object, 'get_search_index_data', lambda: {})()
 
-        print(f'Index data: {index_data}')
-
         # Prepare the data for updating or creating the SearchIndex entry
         update_fields = {
             'name': index_data.get('name', str(related_object)),
@@ -45,8 +43,6 @@ class SearchIndex(models.Model):
             'searchable': index_data.get('searchable', False),
             'search_vector_processed': search_vector_processed,
         }
-
-        print(f'Update fields: {update_fields}')
 
         search_index, created = cls.objects.update_or_create(
             content_type=content_type,

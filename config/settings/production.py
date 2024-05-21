@@ -167,9 +167,9 @@ LOGGING = {
             "propagate": False,
         },
         "celery": {
-            "level": "DEBUG",
+            "level": "INFO",
             "handlers": ["console"],
-            "propagate": True,
+            "propagate": False,
         },
     },
 }
