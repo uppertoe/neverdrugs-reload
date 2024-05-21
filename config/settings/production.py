@@ -169,7 +169,7 @@ LOGGING = {
         "celery": {
             "level": "DEBUG",
             "handlers": ["console"],
-            "propagate": False,
+            "propagate": True,
         },
     },
 }
