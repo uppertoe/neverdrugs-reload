@@ -83,10 +83,9 @@ class SearchIndex(models.Model):
             ).order_by('-rank', '-similarity')
 
              # Evaluate the queryset and store the IDs in the cache
-            results = list(queryset)
-            result_ids = [obj.id for obj in results]
-            
-            # Cache for 5 minutes
+            result_ids = list(queryset.values_list('id', flat=True))
+
+            # Cache settings.CACHE_TIMEOUT (5 minutes by default)
             cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
         
         return queryset
