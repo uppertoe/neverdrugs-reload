@@ -9,11 +9,20 @@ class Drug(models.Model):
     atc_category = models.ManyToManyField(classifications.ChemicalSubstance, through='DrugCategory')
     searchable = models.BooleanField(default=True)
 
+    def get_category_parents(self):
+        chemical_substances = self.atc_category.all()
+        parent = classifications.ChemicalTherapeuticPharmacologicalSubgroup 
+        
+        parents = parent.objects.filter(chemicalsubstance__in=chemical_substances).distinct()
+
+        return parents
+
     def get_related_drugs(self):
         # Find drugs related to the same categories as this drug, excluding the current drug
-        related_drugs = Drug.objects.filter(
-            atc_category__in=self.atc_category.filter(atc_import__active=True)
-        ).distinct().exclude(id=self.id)
+        parents = self.get_category_parents()
+        children = classifications.ChemicalSubstance.objects.filter(parent__in=parents)
+
+        related_drugs = Drug.objects.exclude(pk=self.pk).filter(atc_category__in=children)
 
         return related_drugs
     

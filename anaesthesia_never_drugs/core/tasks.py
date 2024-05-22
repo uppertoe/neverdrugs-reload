@@ -99,11 +99,15 @@ def process_atc_chunk(chunk, atc_import_pk, root_name):
 '''Drug model updating'''
 @celery_app.task()
 def process_drug_chunk(chemical_substance_ids):
+    '''
+    Creates or updates a Drug object for each ChemicalSubstance passed
+    SearchIndexes are also created for each Drug
+    '''
     processed_count = 0
     for chemical_substance_id in chemical_substance_ids:
         try:
             chemical_substance = ChemicalSubstance.objects.get(pk=chemical_substance_id)
-            chemical_substance.create_or_update_drug()
+            chemical_substance.create_or_update_drug()  # Calls SearchIndex.update_or_create_index()
             processed_count += 1
         except ChemicalSubstance.DoesNotExist:
             continue
@@ -111,6 +115,11 @@ def process_drug_chunk(chemical_substance_ids):
 
 @celery_app.task(retry_kwargs={'max_retries': 5, 'countdown': 60}, retry_backoff=True)
 def dispatch_update_drug_objects(atc_import_pk, batch_size=100):
+    '''
+    Takes an AtcImport and gets its associated ChemicalSubstances
+    Creates batches of ChemicalSubstances from which Drug objects should be created/updated
+    Finally, trigger batch updating of SearchVectors 
+    '''
     atc_import = AtcImport.objects.get(pk=atc_import_pk)
     drugs_to_update = ChemicalSubstance.objects.filter(atc_import=atc_import)
 

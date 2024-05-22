@@ -151,7 +151,7 @@ class ChemicalSubstance(WhoAtc):
     @staticmethod
     def _update_search_index(drug):
         from .search import SearchIndex
-        logger.info(f'Updating or creating index for {drug}')
+
         SearchIndex.update_or_create_index(drug, search_vector_processed=False)
 
     def create_or_update_drug(self):
@@ -159,8 +159,6 @@ class ChemicalSubstance(WhoAtc):
 
         # Filter by name (case insensitive)
         drugs = Drug.objects.filter(name__iexact=self.name)
-        
-        logging.info(f'Matching drugs: {drugs}')
 
         # Account for multiple matches
         if drugs.exists():
