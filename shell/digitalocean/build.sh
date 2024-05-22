@@ -3,6 +3,9 @@
 # Set up the repository
 git clone https://github.com/uppertoe/neverdrugs-reload.git
 
+# Create .env files
+mkdir -p $HOME/neverdrugs-reload/.envs/.production
+
 # Function to prompt for input and create .env file
 create_env_file() {
     local file_path=$1
@@ -13,7 +16,7 @@ create_env_file() {
 
     # Read multiline input
     while IFS= read -r line; do
-        if [[ "$line" == "EOF" ]]; then
+        if [ "$line" = "EOF" ]; then
             break
         fi
         echo "$line" >> "$file_path"
@@ -23,8 +26,8 @@ create_env_file() {
 }
 
 # Define the target file paths
-DJANGO_ENV_FILE=~neverdrugs-reload/.envs/.production/.django
-POSTGRES_ENV_FILE=~neverdrugs-reload/.envs/.production/.postgres
+DJANGO_ENV_FILE=$HOME/neverdrugs-reload/.envs/.production/.django
+POSTGRES_ENV_FILE=$HOME/neverdrugs-reload/.envs/.production/.postgres
 
 # Create .env file for Django
 create_env_file "$DJANGO_ENV_FILE"
@@ -32,8 +35,12 @@ create_env_file "$DJANGO_ENV_FILE"
 # Create .env file for Postgres
 create_env_file "$POSTGRES_ENV_FILE"
 
-# Build the Docker image
-docker compose -f neverdrugs-reload/production.yml build
+# Change directory to the cloned repository
+cd $HOME/neverdrugs-reload
 
-docker compose -f neverdrugs-reload/production.yml --rm run django python manage.py migrate
-docker compose -f neverdrugs-reload/production.yml --rm run django python manage.py collectstatic
+# Build the Docker images
+docker compose -f production.yml build
+
+# Run migrations and collectstatic
+docker compose -f production.yml run --rm django python manage.py migrate
+docker compose -f production.yml run --rm django python manage.py collectstatic --noinput

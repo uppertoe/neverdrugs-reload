@@ -33,11 +33,24 @@
 </head>
 <body>
     <div class="container">
+        <div class="row">
+            <div class="col">
         <h1 class="mb-4">neverDrugs 2.0 Search</h1>
-        <div class="search-box form-inline">
-            <input type="text" name="q" class="form-control mr-2" placeholder="Search..." value="{{ request.GET.q }}" 
-                   hx-get="/search" hx-trigger="keyup changed delay:100ms" hx-target="#results" hx-swap="innerHTML">
+            </div>
         </div>
+        <div class="row">
+            <div class="col">
+            <div class="search-box form-inline">
+            <input type="text" name="q" class="form-control mr-2" placeholder="Search..." value="{{ request.GET.q }}" 
+                   hx-get="/search" hx-trigger="keyup changed delay:500ms" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+            </div>
+            </div>
+            <div class="col">
+            <div id="spinner" class="htmx-indicator">
+                    <div class="spinner-border align-middle " aria-hidden="true"></div>
+            </div>
+            </div>
+    </div>
         <div id="results">
             {% if results %}
                 <div class="list-group">
