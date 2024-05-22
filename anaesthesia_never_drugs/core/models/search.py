@@ -60,25 +60,36 @@ class SearchIndex(models.Model):
 
     @staticmethod
     def search(query):
+        # Return empty if no query
+        if not query:
+            return SearchIndex.objects.none()
+        
         # Set up the cache
         cache_key = f"search_results_{query}"
-        results = cache.get(cache_key)
+        cached_ids = cache.get(cache_key)
         
-        if not results:
+        if cached_ids is not None:
+            # Reconstruct the queryset using the cached IDs
+            queryset = SearchIndex.objects.filter(id__in=cached_ids).order_by('-id')
+        else:
             search_query = SearchQuery(query, config='english')
             trigram_similarity = TrigramSimilarity('name', query)  # Adjust field1 to a relevant field for trigram
 
-            results = SearchIndex.objects.annotate(
+            queryset = SearchIndex.objects.annotate(
                 rank=SearchRank('search_vector', search_query),
                 similarity=trigram_similarity
             ).filter(
                 Q(rank__gte=0.1) | Q(similarity__gte=0.3)
             ).order_by('-rank', '-similarity')
+
+             # Evaluate the queryset and store the IDs in the cache
+            results = list(queryset)
+            result_ids = [obj.id for obj in results]
             
             # Cache for 5 minutes
-            cache.set(cache_key, results, timeout=settings.CACHE_TIMEOUT)
+            cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
         
-        return results
+        return queryset
 
     def __str__(self):
         return f'{self.model_name} - {self.name}'
