@@ -196,6 +196,9 @@ sentry_sdk.init(
     traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0),
 )
 
+# Cache
+# ------------------------------------------------------------------------------
+CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=300)
 
 # Your stuff...
 # ------------------------------------------------------------------------------

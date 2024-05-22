@@ -75,3 +75,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 WEBPACK_LOADER["DEFAULT"]["CACHE"] = not DEBUG  # noqa: F405
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Cache
+# ------------------------------------------------------------------------------
+CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=0)

@@ -4,6 +4,8 @@ from django.contrib.postgres.search import SearchVectorField, SearchQuery, Searc
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.core.cache import cache
+from django.conf import settings
 
 class SearchIndex(models.Model):
     # Indexed models should implement get_search_index_data
@@ -58,15 +60,23 @@ class SearchIndex(models.Model):
 
     @staticmethod
     def search(query):
-        search_query = SearchQuery(query, config='english')
-        trigram_similarity = TrigramSimilarity('name', query)  # Adjust field1 to a relevant field for trigram
+        # Set up the cache
+        cache_key = f"search_results_{query}"
+        results = cache.get(cache_key)
+        
+        if not results:
+            search_query = SearchQuery(query, config='english')
+            trigram_similarity = TrigramSimilarity('name', query)  # Adjust field1 to a relevant field for trigram
 
-        results = SearchIndex.objects.annotate(
-            rank=SearchRank('search_vector', search_query),
-            similarity=trigram_similarity
-        ).filter(
-            Q(rank__gte=0.1) | Q(similarity__gte=0.3)
-        ).order_by('-rank', '-similarity')
+            results = SearchIndex.objects.annotate(
+                rank=SearchRank('search_vector', search_query),
+                similarity=trigram_similarity
+            ).filter(
+                Q(rank__gte=0.1) | Q(similarity__gte=0.3)
+            ).order_by('-rank', '-similarity')
+            
+            # Cache for 5 minutes
+            cache.set(cache_key, results, timeout=settings.CACHE_TIMEOUT)
         
         return results
 
