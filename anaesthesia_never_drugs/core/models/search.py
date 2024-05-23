@@ -1,11 +1,14 @@
 from django.db import models
 from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchVector, SearchRank, TrigramSimilarity
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.cache import cache
 from django.conf import settings
+
+
 
 class SearchIndex(models.Model):
     # Indexed models should implement get_search_index_data
@@ -25,7 +28,10 @@ class SearchIndex(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
 
     class Meta:
-        indexes = [GinIndex(fields=['search_vector'])]
+        indexes = [
+            GinIndex(fields=['name'], name='name_gin_trgm_idx', opclasses=['gin_trgm_ops']),
+            GinIndex(fields=['search_vector']),
+            ]
         verbose_name_plural = "search indices"
 
     @classmethod
@@ -66,14 +72,11 @@ class SearchIndex(models.Model):
         
         # Set up the cache
         cache_key = f"search_results_{query}"
-        cached_ids = cache.get(cache_key)
+        result_ids = cache.get(cache_key)
         
-        if cached_ids is not None:
-            # Reconstruct the queryset using the cached IDs
-            queryset = SearchIndex.objects.filter(id__in=cached_ids).order_by('-id')
-        else:
+        if result_ids is None:  # Cache miss
             search_query = SearchQuery(query, config='english')
-            trigram_similarity = TrigramSimilarity('name', query)  # Adjust field1 to a relevant field for trigram
+            trigram_similarity = TrigramSimilarity('name', query)
 
             queryset = SearchIndex.objects.annotate(
                 rank=SearchRank('search_vector', search_query),
@@ -82,11 +85,14 @@ class SearchIndex(models.Model):
                 Q(rank__gte=0.1) | Q(similarity__gte=0.3)
             ).order_by('-rank', '-similarity')
 
-             # Evaluate the queryset and store the IDs in the cache
+            # Evaluate the queryset for the cache
             result_ids = list(queryset.values_list('id', flat=True))
 
-            # Cache settings.CACHE_TIMEOUT (5 minutes by default)
+            # Set the new cache
             cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
+        
+        # Reconstruct the queryset using the cached IDs
+        queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
         
         return queryset
 

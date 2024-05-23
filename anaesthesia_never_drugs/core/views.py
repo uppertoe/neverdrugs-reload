@@ -13,7 +13,7 @@ def search(request):
 
     # Get the search query and results
     query = request.GET.get('q')
-    results = SearchIndex.search(query) if query else []
+    results = SearchIndex.search(query)
 
     logger.info(f'Search performed: {query}')
 
