@@ -50,7 +50,7 @@ def cache_common_queries():
     '''
     Determine the most common search queries, and cache the results
     '''
-    number_to_cache = 100
+    number_to_cache = 1000
 
     common_queries = SearchQueryLog.objects.order_by('-count')[:number_to_cache]
 
