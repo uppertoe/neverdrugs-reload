@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.http import HttpResponseNotAllowed
 import logging
 
-from .models.search import SearchIndex
+from .models.search import SearchIndex, SearchQueryLog
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,10 @@ def search(request):
     # Get the search query and results
     query = request.GET.get('q')
     results = SearchIndex.search(query)
+
+    # Log the query for ongoing caching
+    if query:
+        SearchQueryLog.log_query(query)
 
     logger.info(f'Search performed: {query}')
 

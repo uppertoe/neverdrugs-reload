@@ -1,0 +1,1 @@
+docker exec -it anaesthesia_never_drugs_local_postgres psql -U tcTCsuKcpFyvgWShHBhtHnZxZdDqgRZO -d anaesthesia_never_drugs

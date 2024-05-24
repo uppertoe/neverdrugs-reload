@@ -1,12 +1,26 @@
 from django.db import models
-from django.db.models import Q
-from django.db.models.query import QuerySet
+from django.db.models import Q, F
 from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchVector, SearchRank, TrigramSimilarity
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.cache import cache
 from django.conf import settings
+
+
+class SearchQueryLog(models.Model):
+    query = models.CharField(max_length=255, unique=True)
+    count = models.PositiveIntegerField(default=1)
+
+    @staticmethod
+    def log_query(query):
+        obj, created = SearchQueryLog.objects.get_or_create(query=query)
+        if not created:
+            SearchQueryLog.objects.filter(query=query).update(count=F('count') + 1)
+        return obj
+
+    def __str__(self):
+        return self.query
 
 
 
@@ -65,7 +79,7 @@ class SearchIndex(models.Model):
         return ContentType.objects.get_for_model(instance)
 
     @staticmethod
-    def search(query):
+    def search(query, return_result=True):
         # Return empty if no query
         if not query:
             return SearchIndex.objects.none()
@@ -91,10 +105,14 @@ class SearchIndex(models.Model):
             # Set the new cache
             cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
         
-        # Reconstruct the queryset using the cached IDs
-        queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
+        if return_result:
+            # Reconstruct the queryset using the cached IDs
+            queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
+            
+            return queryset
         
-        return queryset
+        # For cache-only operations
+        return True 
 
     def __str__(self):
         return f'{self.model_name} - {self.name}'

@@ -9,8 +9,8 @@ from .utils.fda import orchestrate_fda_products_download
 from .utils.orphanet import get_latest_orphanet_json, unpack_orphanet_json_entry
 from .utils.helpers import chunk_queryset, chunk_generator, iterable_batch_generator
 from .models.classifications import AtcImport, WhoAtc, FdaImport, ChemicalSubstance
-from .models.conditions import OrphaImport, Condition, OrphaEntry
-from .models.search import SearchIndex
+from .models.conditions import OrphaImport, OrphaEntry
+from .models.search import SearchIndex, SearchQueryLog
 from .forms.drugs import FORMS_BY_LEVEL
 from .forms.conditions import OrphaEntryForm
 
@@ -43,6 +43,19 @@ def dispatch_search_vector_updates(result):
 
     for batch in batches:
         update_search_vector.delay(batch)
+
+
+@celery_app.task()
+def cache_common_queries():
+    '''
+    Determine the most common search queries, and cache the results
+    '''
+    number_to_cache = 100
+
+    common_queries = SearchQueryLog.objects.order_by('-count')[:number_to_cache]
+
+    for log_object in common_queries:
+        SearchIndex.search(log_object.query, return_result=False)
 
 
 '''WHO ATC scraping'''
