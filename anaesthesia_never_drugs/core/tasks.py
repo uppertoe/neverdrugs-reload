@@ -3,6 +3,7 @@ from celery import chord
 from django.contrib.postgres.search import SearchVector
 from django.db import transaction, OperationalError
 import logging
+import redis
 
 from .utils.atc import scrape_atc, scrape_atc_roots
 from .utils.fda import orchestrate_fda_products_download
@@ -15,6 +16,9 @@ from .forms.drugs import FORMS_BY_LEVEL
 from .forms.conditions import OrphaEntryForm
 
 logger = logging.getLogger(__name__)
+
+# Configure Redis connection
+redis_client = redis.StrictRedis.from_url('redis://redis:6379/0')
 
 '''Search Index'''
 
@@ -51,11 +55,24 @@ def cache_common_queries():
     Determine the most common search queries, and cache the results
     '''
     number_to_cache = 1000
+    
+    # Distributed lock using Redis
+    lock = redis_client.lock("cache_common_queries_lock", timeout=300)  # 5 minute lock
 
-    common_queries = SearchQueryLog.objects.order_by('-count')[:number_to_cache]
-
-    for log_object in common_queries:
-        SearchIndex.search(log_object.query, return_result=False)
+    if lock.acquire(blocking=False):
+        logger.info('Lock acquired for caching common queries')
+        try:
+            common_queries = SearchQueryLog.objects.order_by('-count')[:number_to_cache]
+            for log_object in common_queries:
+                SearchIndex.search(log_object.query, return_result=False)
+                logger.info(f'Cached query: {log_object.query}')
+        except Exception as e:
+            logger.error(f'Error during caching common queries: {e}')
+        finally:
+            lock.release()
+            logger.info('Lock released after caching common queries')
+    else:
+        logger.info('Task already running - cache common queries')
 
 
 '''WHO ATC scraping'''
