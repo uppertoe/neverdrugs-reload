@@ -21,6 +21,6 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     'cache-common-queries': {
         'task': 'anaesthesia_never_drugs.core.tasks.cache_common_queries',
-        'schedule': crontab(hour='*/1'),  # Run every hour
+        'schedule': crontab(minute=0, hour='*'),  # Run at the start of every hour
     },
 }
