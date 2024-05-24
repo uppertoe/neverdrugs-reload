@@ -2,6 +2,7 @@ from config import celery_app
 from celery import chord
 from django.contrib.postgres.search import SearchVector
 from django.db import transaction, OperationalError
+from django.conf import settings
 import logging
 import redis
 
@@ -18,7 +19,7 @@ from .forms.conditions import OrphaEntryForm
 logger = logging.getLogger(__name__)
 
 # Configure Redis connection
-redis_client = redis.StrictRedis.from_url('redis://redis:6379/0')
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
 
 '''Search Index'''
 
@@ -53,6 +54,7 @@ def dispatch_search_vector_updates(result):
 def cache_common_queries():
     '''
     Determine the most common search queries, and cache the results
+    Uses a Redis distributed lock to avoid duplication by multiple workers on startup
     '''
     number_to_cache = 1000
     
