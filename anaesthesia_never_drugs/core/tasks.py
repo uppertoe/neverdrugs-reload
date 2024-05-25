@@ -19,7 +19,7 @@ from .forms.conditions import OrphaEntryForm
 logger = logging.getLogger(__name__)
 
 # Configure Redis connection
-redis_client = redis.StrictRedis.from_url(settings.REDIS_URL)
+redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
 
 '''Search Index'''
 
