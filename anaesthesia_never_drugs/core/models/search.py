@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Q, F, FloatField, ExpressionWrapper, Case, When, Value as V
 from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchRank, TrigramSimilarity
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
@@ -114,17 +114,32 @@ class SearchIndex(models.Model):
             min_multiplier = 1
             max_multiplier = 10
             random_multiplier = randrange(min_multiplier, max_multiplier + 1)
-            randomised_cache_timeout = random_multiplier * cache_timeout
+            
+            # Aim for expiry shortly before scheduled cache refresh
+            randomised_cache_timeout = random_multiplier * cache_timeout - 30
 
+            # Calculate the query and TrigramSimilarity
             search_query = SearchQuery(query, config='english')
             trigram_similarity = TrigramSimilarity('name', query)
 
+            # Apply the search to the SearchIndex
             queryset = SearchIndex.objects.annotate(
-                rank=SearchRank('search_vector', search_query),
-                similarity=trigram_similarity
-            ).filter(
+                rank=SearchRank(F('search_vector'), search_query),
+                similarity=trigram_similarity,
+            )
+
+            # Combine rank and similarity into a single score
+            queryset = queryset.annotate(
+                combined_score=ExpressionWrapper(
+                    F('rank') + F('similarity'),  # Boost exact matches
+                    output_field=FloatField()
+                )
+            )
+            
+            # Filter the resulting queryet
+            queryset = queryset.filter(
                 Q(rank__gte=0.1) | Q(similarity__gte=0.3)
-            ).order_by('-rank', '-similarity')
+            ).order_by('-combined_score')
 
             # Evaluate the queryset for the cache
             result_ids = list(queryset.values_list('id', flat=True))
@@ -134,8 +149,11 @@ class SearchIndex(models.Model):
                 cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
 
         if return_result:
+            # Ensure order is preserved in the new queryset
+            preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(result_ids)])
+
             # Reconstruct the queryset using the cached IDs
-            queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
+            queryset = SearchIndex.objects.filter(id__in=result_ids).order_by(preserved)
             
             # Cache-only searches should not be logged
             SearchQueryLog.log_query(query)
