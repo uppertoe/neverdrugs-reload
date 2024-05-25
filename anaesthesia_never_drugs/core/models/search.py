@@ -123,21 +123,19 @@ class SearchIndex(models.Model):
                 Q(rank__gte=0.1) | Q(similarity__gte=0.3)
             ).order_by('-rank', '-similarity')
 
-            if queryset.exists():  # Prevent cache pollution by zero result queries
-                # Evaluate the queryset for the cache
-                result_ids = list(queryset.values_list('id', flat=True))
+            # Evaluate the queryset for the cache
+            result_ids = list(queryset.values_list('id', flat=True))
 
-                if return_result:  # Cache-only searches should not be logged
-                    SearchQueryLog.log_query(query)
-
+            if result_ids:   # Prevent cache pollution by zero result queries
                 # Set the new cache
                 cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
-        
+
         if return_result:
-            # Ensure result_ids is a list
-            result_ids = result_ids or []
             # Reconstruct the queryset using the cached IDs
             queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
+            
+            # Cache-only searches should not be logged
+            SearchQueryLog.log_query(query)
             
             return queryset
         

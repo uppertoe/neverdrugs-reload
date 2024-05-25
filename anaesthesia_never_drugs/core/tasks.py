@@ -58,7 +58,7 @@ def cache_common_queries():
     # Distributed lock using Redis
     # Configure Redis connection
     redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
-    lock = redis_client.lock("cache_common_queries_lock", timeout=300)  # 5 minute lock
+    lock = redis_client.lock("cache_common_queries_lock", timeout=7200)  # 120 minute lock
 
     if lock.acquire(blocking=False):
         logger.info('Lock acquired for caching common queries')
