@@ -68,4 +68,4 @@ class OrphaEntryAdmin(admin.ModelAdmin):
 
 @admin.register(SearchQueryLog)
 class SearchQueryLogAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('query', 'count')

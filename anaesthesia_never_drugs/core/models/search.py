@@ -17,6 +17,9 @@ class SearchQueryLog(models.Model):
     query = models.CharField(max_length=255, unique=True)
     count = models.PositiveIntegerField(default=1)
 
+    class Meta:
+        ordering = ['-count', 'query']
+
     @staticmethod
     def log_query(query):
         obj, created = SearchQueryLog.objects.get_or_create(query=query)
