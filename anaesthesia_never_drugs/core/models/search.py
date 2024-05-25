@@ -81,6 +81,13 @@ class SearchIndex(models.Model):
 
     @staticmethod
     def search(query, return_result=True):
+        '''
+        Attempts to match the query to a result in cache
+        If no match, performs the search and populates the cache with a random timeout
+        If a cache exists, returns this without updating the cache timeout
+
+        Can perform a cache-only operation if return_result==False
+        '''
         # Return empty if no query
         if not query and return_result:
             return SearchIndex.objects.none()
@@ -107,13 +114,16 @@ class SearchIndex(models.Model):
                 Q(rank__gte=0.1) | Q(similarity__gte=0.3)
             ).order_by('-rank', '-similarity')
 
-            # Evaluate the queryset for the cache
-            result_ids = list(queryset.values_list('id', flat=True))
+            if queryset.exists():  # Prevent cache pollution by zero result queries
+                # Evaluate the queryset for the cache
+                result_ids = list(queryset.values_list('id', flat=True))
 
-            # Set the new cache
-            cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
+                # Set the new cache
+                cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
         
         if return_result:
+            # Ensure result_ids is a list
+            result_ids = result_ids or []
             # Reconstruct the queryset using the cached IDs
             queryset = SearchIndex.objects.filter(id__in=result_ids).order_by('-id')
             
