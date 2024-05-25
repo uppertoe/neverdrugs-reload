@@ -127,8 +127,8 @@ class SearchIndex(models.Model):
                 # Evaluate the queryset for the cache
                 result_ids = list(queryset.values_list('id', flat=True))
 
-                # Log the query for ongoing caching
-                SearchQueryLog.log_query(query)
+                if return_result:  # Cache-only searches should not be logged
+                    SearchQueryLog.log_query(query)
 
                 # Set the new cache
                 cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
