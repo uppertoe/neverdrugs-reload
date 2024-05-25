@@ -1,6 +1,6 @@
 from django.apps import AppConfig
-from django.conf import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +12,10 @@ class CoreAppConfig(AppConfig):
     def ready(self):
         from . import signals
 
-        # Ensure ENVs are available
-        if settings.CELERY_BROKER_URL:
-            # Trigger caching of common queries at startup
+        # Check if CELERY_BROKER_URL is available before triggering caching
+        celery_broker_url = os.getenv('CELERY_BROKER_URL')
+        
+        if celery_broker_url:
             from .tasks import cache_common_queries
             cache_common_queries.delay()
         else:
