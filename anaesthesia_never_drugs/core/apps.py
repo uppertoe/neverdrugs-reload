@@ -1,5 +1,8 @@
 from django.apps import AppConfig
+from django.conf import settings
+import logging
 
+logger = logging.getLogger(__name__)
 
 class CoreAppConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
@@ -8,7 +11,11 @@ class CoreAppConfig(AppConfig):
 
     def ready(self):
         from . import signals
-        from .tasks import cache_common_queries
-        
-        # Trigger caching of common queries at startup
-        cache_common_queries.delay()
+
+        # Ensure ENVs are available
+        if settings.CELERY_BROKER_URL:
+            # Trigger caching of common queries at startup
+            from .tasks import cache_common_queries
+            cache_common_queries.delay()
+        else:
+            logger.info("CELERY_BROKER_URL is not set. Skipping Redis initialization.")

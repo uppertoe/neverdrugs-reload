@@ -19,10 +19,7 @@ from .forms.conditions import OrphaEntryForm
 logger = logging.getLogger(__name__)
 
 # Configure Redis connection
-if settings.CELERY_BROKER_URL:
-    redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
-else:
-    logger.info("CELERY_BROKER_URL is not set. Skipping Redis initialization.")
+redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
 
 '''Search Index'''
 
@@ -60,10 +57,6 @@ def cache_common_queries():
     Uses a Redis distributed lock to avoid duplication by multiple workers on startup
     '''
     number_to_cache = 1000
-
-    # Skip if Redis is not available
-    if not redis_client:
-        return
     
     # Distributed lock using Redis
     lock = redis_client.lock("cache_common_queries_lock", timeout=300)  # 5 minute lock
