@@ -47,7 +47,7 @@ def dispatch_search_vector_updates(result):
         update_search_vector.delay(batch)
 
 
-@celery_app.task()
+@celery_app.task(time_limit=60*60, soft_time_limit=50*60)
 def cache_common_queries():
     '''
     Determine the most common search queries, and cache the results
