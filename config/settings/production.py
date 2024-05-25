@@ -202,7 +202,7 @@ sentry_sdk.init(
 
 # Cache
 # ------------------------------------------------------------------------------
-CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=300)
+CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=3600)
 
 # Your stuff...
 # ------------------------------------------------------------------------------

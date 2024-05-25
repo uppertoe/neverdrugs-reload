@@ -82,4 +82,4 @@ WEBPACK_LOADER["DEFAULT"]["CACHE"] = not DEBUG  # noqa: F405
 
 # Cache
 # ------------------------------------------------------------------------------
-CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=300)
+CACHE_TIMEOUT = env.int('CACHE_TIMEOUT', default=300)  # 5 minutes

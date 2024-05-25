@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.cache import cache
 from django.conf import settings
+from random import randrange
 
 
 class SearchQueryLog(models.Model):
@@ -81,17 +82,21 @@ class SearchIndex(models.Model):
     @staticmethod
     def search(query, return_result=True):
         # Return empty if no query
-        if not query:
+        if not query and return_result:
             return SearchIndex.objects.none()
         
         # Set up the cache
         cache_key = f"search_results_{query}"
         result_ids = cache.get(cache_key)
         
-        if result_ids is not None: # Cache hit
-            # Reset the cache expiry
-            cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
-        else:  # Cache miss
+        if result_ids is None: # Cache miss
+            # Randomize cache timeout to a multiple of the CACHE_TIMEOUT setting
+            cache_timeout = settings.CACHE_TIMEOUT
+            min_multiplier = 1
+            max_multiplier = 10
+            random_multiplier = randrange(min_multiplier, max_multiplier + 1)
+            randomised_cache_timeout = random_multiplier * cache_timeout
+
             search_query = SearchQuery(query, config='english')
             trigram_similarity = TrigramSimilarity('name', query)
 
@@ -106,7 +111,7 @@ class SearchIndex(models.Model):
             result_ids = list(queryset.values_list('id', flat=True))
 
             # Set the new cache
-            cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
+            cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
         
         if return_result:
             # Reconstruct the queryset using the cached IDs
