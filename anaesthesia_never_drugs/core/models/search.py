@@ -1,12 +1,16 @@
 from django.db import models
 from django.db.models import Q, F
-from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchVector, SearchRank, TrigramSimilarity
+from django.contrib.postgres.search import SearchVectorField, SearchQuery, SearchRank, TrigramSimilarity
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.cache import cache
 from django.conf import settings
 from random import randrange
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class SearchQueryLog(models.Model):
@@ -95,6 +99,10 @@ class SearchIndex(models.Model):
         
         # Normalise the query
         query = query.lower()
+
+        # Log the query for ongoing caching
+        SearchQueryLog.log_query(query)
+        logger.info(f'Search performed: {query}')
         
         # Set up the cache
         cache_key = f"search_results_{query}"
