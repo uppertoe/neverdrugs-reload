@@ -88,7 +88,10 @@ class SearchIndex(models.Model):
         cache_key = f"search_results_{query}"
         result_ids = cache.get(cache_key)
         
-        if result_ids is None:  # Cache miss
+        if result_ids is not None: # Cache hit
+            # Reset the cache expiry
+            cache.set(cache_key, result_ids, timeout=settings.CACHE_TIMEOUT)
+        else:  # Cache miss
             search_query = SearchQuery(query, config='english')
             trigram_similarity = TrigramSimilarity('name', query)
 
