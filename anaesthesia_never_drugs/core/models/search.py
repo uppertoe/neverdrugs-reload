@@ -99,9 +99,6 @@ class SearchIndex(models.Model):
         
         # Normalise the query
         query = query.lower()
-
-        # Log the query for ongoing caching
-        SearchQueryLog.log_query(query)
         logger.info(f'Search performed: {query}')
         
         # Set up the cache
@@ -129,6 +126,9 @@ class SearchIndex(models.Model):
             if queryset.exists():  # Prevent cache pollution by zero result queries
                 # Evaluate the queryset for the cache
                 result_ids = list(queryset.values_list('id', flat=True))
+
+                # Log the query for ongoing caching
+                SearchQueryLog.log_query(query)
 
                 # Set the new cache
                 cache.set(cache_key, result_ids, timeout=randomised_cache_timeout)
