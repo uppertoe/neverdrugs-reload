@@ -86,11 +86,15 @@ class SearchIndex(models.Model):
         If no match, performs the search and populates the cache with a random timeout
         If a cache exists, returns this without updating the cache timeout
 
-        Can perform a cache-only operation if return_result==False
+        If return_result=True, returns a SearchIndex queryset
+        Otherwise returns True if a query was processed, else False
         '''
         # Return empty if no query
-        if not query and return_result:
-            return SearchIndex.objects.none()
+        if not query:
+            return SearchIndex.objects.none() if return_result else False
+        
+        # Normalise the query
+        query = query.lower()
         
         # Set up the cache
         cache_key = f"search_results_{query}"
