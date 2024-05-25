@@ -18,9 +18,6 @@ from .forms.conditions import OrphaEntryForm
 
 logger = logging.getLogger(__name__)
 
-# Configure Redis connection
-redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
-
 '''Search Index'''
 
 @celery_app.task()
@@ -59,6 +56,8 @@ def cache_common_queries():
     number_to_cache = 1000
     
     # Distributed lock using Redis
+    # Configure Redis connection
+    redis_client = redis.StrictRedis.from_url(settings.CELERY_BROKER_URL)
     lock = redis_client.lock("cache_common_queries_lock", timeout=300)  # 5 minute lock
 
     if lock.acquire(blocking=False):
