@@ -41,7 +41,7 @@
         <div class="row">
             <div class="col">
             <div class="search-box form-inline">
-            <input type="text" name="q" class="form-control mr-2" placeholder="Search..." value="{{ request.GET.q }}" 
+            <input autofocus type="text" name="q" class="form-control mr-2" placeholder="Search..." value="{{ request.GET.q }}" 
                    hx-get="/search" hx-trigger="keyup changed delay:500ms" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
             </div>
             </div>
