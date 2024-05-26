@@ -1,7 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 
 # Sets up encrypted volumes for Postgres and its local backups
 # Uses Certbot, with scheduled updating of certificates
+
+# docker-compose.yml should be configured:
+#    volumes:
+#      - type: bind
+#        source: /var/lib/docker/pgdata/data
+#        target: /var/lib/postgresql/data
+#      - type: bind
+#        source: /var/lib/docker/pgbackups/backups
+#        target: /backups
+
+# ----------------------------------------------------------------
 
 # Exit script on error
 set -e
@@ -41,8 +52,8 @@ dd if=/dev/zero of=$ENCRYPTED_DATA_FILE bs=1M count=1024
 cryptsetup luksFormat $ENCRYPTED_DATA_FILE $DATA_KEY_FILE
 cryptsetup luksOpen $ENCRYPTED_DATA_FILE pgdata_encrypted --key-file $DATA_KEY_FILE
 mkfs.ext4 /dev/mapper/pgdata_encrypted
-mkdir -p $ENCRYPTED_DATA_VOLUME
-mount /dev/mapper/pgdata_encrypted $ENCRYPTED_DATA_VOLUME
+mkdir -p $ENCRYPTED_DATA_VOLUME/data
+mount /dev/mapper/pgdata_encrypted $ENCRYPTED_DATA_VOLUME/data
 
 # Create and set up the encrypted backup volume using LUKS
 echo "Creating encrypted backup volume..."
@@ -50,12 +61,12 @@ dd if=/dev/zero of=$ENCRYPTED_BACKUP_FILE bs=1M count=1024
 cryptsetup luksFormat $ENCRYPTED_BACKUP_FILE $BACKUP_KEY_FILE
 cryptsetup luksOpen $ENCRYPTED_BACKUP_FILE pgbackups_encrypted --key-file $BACKUP_KEY_FILE
 mkfs.ext4 /dev/mapper/pgbackups_encrypted
-mkdir -p $ENCRYPTED_BACKUP_VOLUME
-mount /dev/mapper/pgbackups_encrypted $ENCRYPTED_BACKUP_VOLUME
+mkdir -p $ENCRYPTED_BACKUP_VOLUME/backups
+mount /dev/mapper/pgbackups_encrypted $ENCRYPTED_BACKUP_VOLUME/backups
 
 # Ensure the volumes mount automatically at boot
-echo '/dev/mapper/pgdata_encrypted /var/lib/docker/pgdata ext4 defaults 0 2' | tee -a /etc/fstab
-echo '/dev/mapper/pgbackups_encrypted /var/lib/docker/pgbackups ext4 defaults 0 2' | tee -a /etc/fstab
+echo '/dev/mapper/pgdata_encrypted /var/lib/docker/pgdata/data ext4 defaults 0 2' | tee -a /etc/fstab
+echo '/dev/mapper/pgbackups_encrypted /var/lib/docker/pgbackups/backups ext4 defaults 0 2' | tee -a /etc/fstab
 echo 'pgdata_encrypted /var/lib/docker/encrypted-pgdata none luks,discard' | tee -a /etc/crypttab
 echo 'pgbackups_encrypted /var/lib/docker/encrypted-pgbackups none luks,discard' | tee -a /etc/crypttab
 

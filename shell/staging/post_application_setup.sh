@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Source the .env file
+if [ -f .env ]; then
+  source .env
+else
+  echo ".env file not found. Please create it and set the necessary environment variables."
+  exit 1
+fi
+
 # Ensure required environment variables are set
 if [ -z "$SENDGRID_API_KEY" ] || [ -z "$NOTIFY_EMAIL" ] || [ -z "$DOCKER_COMPOSE_FILE" ]; then
   echo "SENDGRID_API_KEY, NOTIFY_EMAIL, and DOCKER_COMPOSE_FILE environment variables must be set."

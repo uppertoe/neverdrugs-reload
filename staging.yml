@@ -25,10 +25,10 @@ services:
     image: anaesthesia_never_drugs_production_postgres
     volumes:
       - type: bind
-        source: /var/lib/docker/pgdata
+        source: /var/lib/docker/pgdata/data
         target: /var/lib/postgresql/data
       - type: bind
-        source: /var/lib/docker/pgbackups
+        source: /var/lib/docker/pgbackups/backups
         target: /backups
     env_file:
       - ./.envs/.production/.postgres
