@@ -55,9 +55,7 @@ mkfs.ext4 /dev/mapper/pgdata_encrypted
 mkdir -p $ENCRYPTED_DATA_VOLUME
 mount /dev/mapper/pgdata_encrypted $ENCRYPTED_DATA_VOLUME
 mkdir -p $ENCRYPTED_DATA_VOLUME/postgresql
-
-# Ensure the postgres user owns the directory
-chown -R postgres:postgres $ENCRYPTED_DATA_VOLUME/postgresql
+chown -R 999:999 $ENCRYPTED_DATA_VOLUME/postgresql
 
 # Create and set up the encrypted backup volume using LUKS
 echo "Creating encrypted backup volume..."
@@ -68,6 +66,7 @@ mkfs.ext4 /dev/mapper/pgbackups_encrypted
 mkdir -p $ENCRYPTED_BACKUP_VOLUME
 mount /dev/mapper/pgbackups_encrypted $ENCRYPTED_BACKUP_VOLUME
 mkdir -p $ENCRYPTED_BACKUP_VOLUME/backups
+chown -R 999:999 $ENCRYPTED_BACKUP_VOLUME/backups
 
 # Ensure the volumes mount automatically at boot
 echo '/dev/mapper/pgdata_encrypted /var/lib/docker/pgdata ext4 defaults 0 2' | tee -a /etc/fstab
@@ -86,8 +85,3 @@ chown root:root $HOST_SSL_DIR/server.*
 chmod 600 $HOST_SSL_DIR/server.*
 
 echo "Encrypted Docker volumes and SSL certificates have been set up."
-
-# Troubleshooting permissions
-echo "Checking permissions..."
-ls -ld $ENCRYPTED_DATA_VOLUME/postgresql
-ls -ld $ENCRYPTED_BACKUP_VOLUME/backups
