@@ -1,0 +1,77 @@
+version: '3'
+
+volumes:
+  production_traefik: {}
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: ./compose/production/django/Dockerfile
+
+    image: anaesthesia_never_drugs_production_django
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./.envs/.production/.django
+      - ./.envs/.production/.postgres
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: anaesthesia_never_drugs_production_postgres
+    volumes:
+      - type: bind
+        source: /var/lib/docker/pgdata
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: /var/lib/docker/pgbackups
+        target: /backups
+    env_file:
+      - ./.envs/.production/.postgres
+
+  traefik:
+    build:
+      context: .
+      dockerfile: ./compose/production/traefik/Dockerfile
+    image: anaesthesia_never_drugs_production_traefik
+    depends_on:
+      - django
+    volumes:
+      - production_traefik:/etc/traefik/acme
+    ports:
+      - '0.0.0.0:80:80'
+      - '0.0.0.0:443:443'
+      - '0.0.0.0:5555:5555'
+
+  redis:
+    image: docker.io/redis:6
+
+  celeryworker:
+    <<: *django
+    image: anaesthesia_never_drugs_production_celeryworker
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *django
+    image: anaesthesia_never_drugs_production_celerybeat
+    command: /start-celerybeat
+
+  flower:
+    <<: *django
+    image: anaesthesia_never_drugs_production_flower
+    command: /start-flower
+
+  awscli:
+    build:
+      context: .
+      dockerfile: ./compose/production/aws/Dockerfile
+    env_file:
+      - ./.envs/.production/.django
+    volumes:
+      - type: bind
+        source: /var/lib/docker/pgbackups
+        target: /backups:z

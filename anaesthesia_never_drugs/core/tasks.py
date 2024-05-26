@@ -53,7 +53,8 @@ def cache_common_queries():
     Determine the most common search queries, and cache the results
     Uses a Redis distributed lock to avoid duplication by multiple workers on startup
     '''
-    number_to_cache = 1000
+    number_to_cache = 5
+    000
     
     # Distributed lock using Redis
     # Configure Redis connection
