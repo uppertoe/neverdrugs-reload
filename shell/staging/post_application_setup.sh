@@ -82,6 +82,7 @@ sudo tee $HOST_SSL_DIR/server/postgresql.conf > /dev/null <<EOF
 ssl = on
 ssl_cert_file = '$CONTAINER_SSL_DIR/server.crt'
 ssl_key_file = '$CONTAINER_SSL_DIR/server.key'
+listen_addresses = '*'
 EOF
 
 # Modify pg_hba.conf to enforce SSL connections
@@ -101,34 +102,6 @@ docker-compose -f $DOCKER_COMPOSE_FILE run --rm postgres bash -c "
   chown postgres:postgres /var/lib/postgresql/data/postgresql.conf /var/lib/postgresql/data/pg_hba.conf &&
   chown -R postgres:postgres $CONTAINER_SSL_DIR
 " || { echo "Failed to apply PostgreSQL SSL configuration."; exit 1; }
-
-docker-compose -f $DOCKER_COMPOSE_FILE up -d
-
-# Django container
-docker-compose -f $DOCKER_COMPOSE_FILE exec django bash -c "
-  chmod 644 /etc/ssl/postgresql/client.crt &&
-  chmod 644 /etc/ssl/postgresql/client.key
-"
-
-# Celeryworker container
-docker-compose -f $DOCKER_COMPOSE_FILE exec celeryworker bash -c "
-  chmod 644 /etc/ssl/postgresql/client.crt &&
-  chmod 644 /etc/ssl/postgresql/client.key
-"
-
-# Celerybeat container
-docker-compose -f $DOCKER_COMPOSE_FILE exec celerybeat bash -c "
-  chmod 644 /etc/ssl/postgresql/client.crt &&
-  chmod 644 /etc/ssl/postgresql/client.key
-"
-
-# Flower container
-docker-compose -f $DOCKER_COMPOSE_FILE exec flower bash -c "
-  chmod 644 /etc/ssl/postgresql/client.crt &&
-  chmod 644 /etc/ssl/postgresql/client.key
-"
-
-docker-compose -f $DOCKER_COMPOSE_FILE down
 
 # Run migrations and collectstatic
 docker compose -f $COMPOSE_FILE run --rm django python manage.py migrate
