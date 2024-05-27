@@ -41,11 +41,11 @@ if ${POSTGRES_USE_SSL}:
         "sslkey": "/etc/ssl/postgresql/client/client.key",
     }
 
-    connection_params.update(**ssl_params)
+    connection_params.update(ssl_params)
 
 while True:
     try:
-        psycopg.connect(connection_params)
+        psycopg.connect(**connection_params)
         break
     except psycopg.OperationalError as error:
         sys.stderr.write("Waiting for PostgreSQL to become available...\n")
