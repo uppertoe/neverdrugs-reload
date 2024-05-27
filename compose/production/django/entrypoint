@@ -33,7 +33,7 @@ connection_params = {
     "port": "${POSTGRES_PORT}",
 }
 
-use_ssl = ${POSTGRES_USE_SSL}.lower() in ['true', '1', 'yes']
+use_ssl = ${POSTGRES_USE_SSL}
 
 if use_ssl:
     print("We're using SSL")

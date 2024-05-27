@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Define the SSH key path
-SSH_KEY_PATH="$HOME/.ssh/authorized_keys"
-read -p "Enter the VPS IP address: " VPS_IP
-read -p "Enter the VPS SSH port (default 22): " VPS_PORT
-VPS_PORT=${VPS_PORT:-22}  # Use default port 22 if not provided
-
 echo "Checking UFW Status..."
 sudo ufw status verbose
 
