@@ -34,6 +34,7 @@ connection_params = {
 }
 
 if ${POSTGRES_USE_SSL}:
+    print("We're using SSL")
     ssl_params = {
         "sslmode": "require",
         "sslrootcert": "/etc/ssl/postgresql/ca.crt",
@@ -42,6 +43,8 @@ if ${POSTGRES_USE_SSL}:
     }
 
     connection_params.update(ssl_params)
+
+    print(connection_params)
 
 while True:
     try:
