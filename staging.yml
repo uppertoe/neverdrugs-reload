@@ -4,11 +4,10 @@ volumes:
   production_traefik: {}
 
 services:
-  django: &django
+  django:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
-
     image: anaesthesia_never_drugs_production_django
     depends_on:
       - postgres
@@ -19,7 +18,6 @@ services:
     environment:
       # Expose a specific environment variable directly
       DOCKER_COMPOSE_FILE: ${HOME}/neverdrugs-reload/staging.yml
-    command: /start
 
   postgres:
     build:

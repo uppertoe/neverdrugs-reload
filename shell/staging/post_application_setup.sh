@@ -1,41 +1,110 @@
 #!/bin/bash
 
-# Source the .env file
-if [ -f .env ]; then
-  source .env
-else
-  echo ".env file not found. Please create it and set the necessary environment variables."
-  exit 1
-fi
-
-# Ensure required environment variables are set
-if [ -z "$SENDGRID_API_KEY" ] || [ -z "$NOTIFY_EMAIL" ] || [ -z "$DOCKER_COMPOSE_FILE" ]; then
-  echo "SENDGRID_API_KEY, NOTIFY_EMAIL, and DOCKER_COMPOSE_FILE environment variables must be set."
-  exit 1
-fi
+# Prompt for necessary variables
+read -p "Enter the email to be notified on failure: " NOTIFY_EMAIL
+read -p "Enter the Sendgrid API key: " SENDGRID_API_KEY
+read -p "Enter the domain for SSL certificates: " DOMAIN
+read -p "Enter the Docker Compose file to be used: " DOCKER_COMPOSE_FILE
 
 # Variables
-HOST_SSL_DIR="/etc/ssl/postgresql"
+HOST_SSL_DIR="$HOME/ssl/postgresql"
 CONTAINER_SSL_DIR="/etc/ssl/postgresql"
-RENEWAL_SCRIPT="/usr/local/bin/renew_ssl.sh"
-UPDATE_SCRIPT="/usr/local/bin/update_db.sh"
+RENEWAL_SCRIPT="$HOME/renew_ssl.sh"
+UPDATE_SCRIPT="$HOME/update_db.sh"
 SCHEDULE_TIME="17:00:00"  # This is 03:00 AEST (UTC+10:00)
 
+REPO_DIR=$HOME/neverdrugs-reload
+cd $REPO_DIR
+
+# Update and install necessary packages
+sudo apt-get update && sudo apt-get install -y certbot curl openssl|| { echo "Failed to install required packages."; exit 1; }
+
+# Install yq using snap
+sudo snap install yq
+
+# Create directories for SSL certificates and keys
+mkdir -p $HOST_SSL_DIR/ca
+mkdir -p $HOST_SSL_DIR/server
+mkdir -p $HOST_SSL_DIR/client
+
+# Generate server certificates using Certbot
+sudo certbot certonly --standalone -d $DOMAIN --email $NOTIFY_EMAIL --agree-tos --non-interactive || { echo "Certbot certificate generation failed."; exit 1; }
+sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $HOST_SSL_DIR/server/server.crt
+sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $HOST_SSL_DIR/server/server.key
+sudo chmod 600 $HOST_SSL_DIR/server/*  # Access by Postgres user only
+
+# Generate CA and client certificates
+openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key
+openssl req -new -x509 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -days 365 -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=ca.$DOMAIN/emailAddress=$NOTIFY_EMAIL"
+
+openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/client/client.key
+openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=client.$DOMAIN/emailAddress=$NOTIFY_EMAIL"
+openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365
+sudo chmod 644 $HOST_SSL_DIR/client/*  # Read access by other containers
+
+# Update Docker Compose file for SSL
+yq eval '.services.postgres.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/server"'", "target": "'"$CONTAINER_SSL_DIR"'"}]' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.postgres.environment += {"POSTGRES_SSL_CERT_FILE": "'"$CONTAINER_SSL_DIR/server.crt"'"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.postgres.environment += {"POSTGRES_SSL_KEY_FILE": "'"$CONTAINER_SSL_DIR/server.key"'"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.postgres.environment += {"POSTGRES_SSL": "on"}' -i $DOCKER_COMPOSE_FILE
+
+# Ensure all services use the CA certificate to verify the server certificate
+yq eval '.services.django.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.celeryworker.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.celerybeat.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.flower.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.awscli.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
+
+yq eval '.services.django.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.celeryworker.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.celerybeat.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.flower.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
+yq eval '.services.awscli.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
+
+# PostgreSQL configuration adjustments
+sudo tee $HOST_SSL_DIR/server/postgresql.conf > /dev/null <<EOF
+ssl = on
+ssl_cert_file = '$CONTAINER_SSL_DIR/server.crt'
+ssl_key_file = '$CONTAINER_SSL_DIR/server.key'
+EOF
+
+# Modify pg_hba.conf to enforce SSL connections
+sudo tee $HOST_SSL_DIR/server/pg_hba.conf > /dev/null <<EOF
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+hostssl all             all             0.0.0.0/0               md5
+hostssl all             all             ::/0                    md5
+EOF
+
+# Ensure PostgreSQL reads the new configuration files
+docker-compose -f $DOCKER_COMPOSE_FILE down
+docker-compose -f $DOCKER_COMPOSE_FILE up -d postgres
+
+# Apply PostgreSQL SSL configuration and restart PostgreSQL
+docker-compose -f $DOCKER_COMPOSE_FILE exec -T postgres bash -c "
+  cp $CONTAINER_SSL_DIR/postgresql.conf /var/lib/postgresql/data/postgresql.conf &&
+  cp $CONTAINER_SSL_DIR/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf &&
+  chown postgres:postgres /var/lib/postgresql/data/postgresql.conf /var/lib/postgresql/data/pg_hba.conf &&
+  chown -R postgres:postgres $CONTAINER_SSL_DIR
+" || { echo "Failed to apply PostgreSQL SSL configuration."; exit 1; }
+
+# Restart PostgreSQL container to apply the new configuration
+docker-compose -f $DOCKER_COMPOSE_FILE restart postgres || { echo "Failed to restart PostgreSQL container."; exit 1; }
+
 # Create renewal script
-sudo tee $RENEWAL_SCRIPT > /dev/null <<EOF
+tee $RENEWAL_SCRIPT > /dev/null <<EOF
 #!/bin/bash
 
 # Renew the SSL certificates if they are close to expiry
-if certbot renew --quiet --deploy-hook "cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $HOST_SSL_DIR/server.crt && cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $HOST_SSL_DIR/server.key && chown root:root $HOST_SSL_DIR/server.* && chmod 600 $HOST_SSL_DIR/server.*"; then
+if certbot renew --quiet --deploy-hook "cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $HOST_SSL_DIR/server.crt && cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $HOST_SSL_DIR/server.key && chmod 600 $HOST_SSL_DIR/server.*"; then
   # Certificates were renewed and copied, restart PostgreSQL container to apply new certificates
   docker-compose -f $DOCKER_COMPOSE_FILE restart postgres
 fi
 EOF
 
-sudo chmod +x $RENEWAL_SCRIPT
+chmod +x $RENEWAL_SCRIPT
 
 # Create update script
-sudo tee $UPDATE_SCRIPT > /dev/null <<EOF
+tee $UPDATE_SCRIPT > /dev/null <<EOF
 #!/bin/bash
 
 # Create temporary backup directory
@@ -93,10 +162,10 @@ rm -rf \$TEMP_BACKUP_DIR
 docker-compose -f $DOCKER_COMPOSE_FILE up -d || { echo "Failed to start Docker containers."; exit 1; }
 EOF
 
-sudo chmod +x $UPDATE_SCRIPT
+chmod +x $UPDATE_SCRIPT
 
 # Create notify failure script
-sudo tee /usr/local/bin/notify_failure.sh > /dev/null <<EOF
+tee $HOME/notify_failure.sh > /dev/null <<EOF
 #!/bin/bash
 UNIT_NAME=\$1
 STATUS=\$(systemctl is-failed \$UNIT_NAME)
@@ -128,7 +197,7 @@ curl --request POST \
   }'
 EOF
 
-sudo chmod +x /usr/local/bin/notify_failure.sh
+chmod +x $HOME/notify_failure.sh
 
 # Create systemd service for notification
 sudo tee /etc/systemd/system/notify_failure.service > /dev/null <<EOF
@@ -137,7 +206,7 @@ Description=Notify on systemd unit failure
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/notify_failure.sh %i
+ExecStart=$HOME/notify_failure.sh %i
 EOF
 
 # Create systemd service for renewal
@@ -193,23 +262,5 @@ sudo systemctl enable renew_ssl.timer
 sudo systemctl start renew_ssl.timer
 sudo systemctl enable update_db.timer
 sudo systemctl start update_db.timer
-
-# PostgreSQL configuration file adjustments
-# Assuming the directory is mounted correctly in the Docker container
-sudo tee $HOST_SSL_DIR/postgresql.conf > /dev/null <<EOF
-ssl = on
-ssl_cert_file = '$CONTAINER_SSL_DIR/server.crt'
-ssl_key_file = '$CONTAINER_SSL_DIR/server.key'
-EOF
-
-# Modify pg_hba.conf to enforce SSL connections
-sudo tee $HOST_SSL_DIR/pg_hba.conf > /dev/null <<EOF
-# TYPE  DATABASE        USER            ADDRESS                 METHOD
-hostssl all             all             0.0.0.0/0               md5
-hostssl all             all             ::/0                    md5
-EOF
-
-# Restart PostgreSQL container to apply changes
-docker-compose -f $DOCKER_COMPOSE_FILE restart postgres || { echo "Failed to restart PostgreSQL container."; exit 1; }
 
 echo "Post-application setup complete. Docker services have been configured and started with encryption at rest and in transit, and scheduled updates and backups with email notifications on failure."

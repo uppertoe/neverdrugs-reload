@@ -1,0 +1,1 @@
+docker compose -f neverdrugs-reload/staging.yml run --rm postgres bash
