@@ -26,6 +26,7 @@ if env.bool("POSTGRES_USE_SSL", default=False):
         'sslcert': '/etc/ssl/postgresql/client.crt',
         'sslkey': '/etc/ssl/postgresql/client.key',
         }
+    print(f'Here\'s the settings.DATABASES: {DATABASES}')
 
 # REDIS
 # ------------------------------------------------------------------------------
