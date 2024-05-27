@@ -54,7 +54,8 @@ sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SS
 
 # Set appropriate permissions and ownership for the CA key
 sudo chmod 600 $HOST_SSL_DIR/ca/ca.key
-sudo chown 999:999 $HOST_SSL_DIR/ca/ca.key  # Assuming UID and GID for postgres user
+sudo chmod 644 $HOST_SSL_DIR/ca/ca.crt
+sudo chown 999:999 $HOST_SSL_DIR/ca/ca.key $HOST_SSL_DIR/ca/ca.crt # Assuming UID and GID for postgres user
 
 # Generate server key and certificate signing request (CSR)
 sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/server/server.key
@@ -78,8 +79,9 @@ sudo chown 999:999 $HOST_SSL_DIR/server/*.key $HOST_SSL_DIR/server/*.crt
 # PostgreSQL configuration adjustments
 sudo tee $HOST_SSL_DIR/server/postgresql.conf > /dev/null <<EOF
 ssl = on
-ssl_cert_file = '$CONTAINER_SSL_DIR/server.crt'
-ssl_key_file = '$CONTAINER_SSL_DIR/server.key'
+ssl_cert_file = '/etc/ssl/postgresql/server/server.crt'
+ssl_key_file = '/etc/ssl/postgresql/server/server.key'
+ssl_ca_file = '/etc/ssl/postgresql/ca/ca.crt'
 listen_addresses = '*'
 EOF
 
