@@ -22,7 +22,7 @@ import time
 
 import psycopg
 
-suggest_unrecoverable_after = 5 # default 30
+suggest_unrecoverable_after = 30
 start = time.time()
 
 connection_params = {
@@ -36,7 +36,6 @@ connection_params = {
 use_ssl = ${POSTGRES_USE_SSL} in [True, 'True']
 
 if use_ssl:
-    print("We're using SSL")
     ssl_params = {
         "sslmode": "require",
         "sslrootcert": "${DB_SSLROOTCERT}",
@@ -46,8 +45,6 @@ if use_ssl:
 
     connection_params.update(ssl_params)
 
-    print(connection_params)
-
 while True:
     try:
         psycopg.connect(**connection_params)
@@ -56,8 +53,7 @@ while True:
         sys.stderr.write("Waiting for PostgreSQL to become available...\n")
 
         if time.time() - start > suggest_unrecoverable_after:
-            #sys.stderr.write("  This is taking longer than expected. The following exception may be indicative of an unrecoverable error: '{}'\n".format(error))
-            break
+            sys.stderr.write("  This is taking longer than expected. The following exception may be indicative of an unrecoverable error: '{}'\n".format(error))
     time.sleep(1)
 END
 

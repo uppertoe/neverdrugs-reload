@@ -26,7 +26,6 @@ if env.bool("POSTGRES_USE_SSL", default=False):
         'sslcert': env("DB_SSLCERT"),
         'sslkey': env("DB_SSLKEY"),
         }
-    print(f'Here\'s the settings.DATABASES: {DATABASES}')
 
 # REDIS
 # ------------------------------------------------------------------------------

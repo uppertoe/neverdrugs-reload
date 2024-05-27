@@ -48,33 +48,33 @@ sudo mkdir -p $HOST_SSL_DIR/ca
 sudo mkdir -p $HOST_SSL_DIR/server
 sudo mkdir -p $HOST_SSL_DIR/client
 
-# Generate CA key and certificate
+## Generate keys and certificates
+# Generate CA key and certificate; subject must be different to the server and client subjects
 sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key -aes256 -pass pass:$CA_PASSWORD
-sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -passin pass:$CA_PASSWORD -subj "/CN=$DOMAIN"
-
-# Set appropriate permissions and ownership for the CA key
-sudo chmod 600 $HOST_SSL_DIR/ca/ca.key
-sudo chmod 644 $HOST_SSL_DIR/ca/ca.crt
-sudo chown 999:999 $HOST_SSL_DIR/ca/ca.key $HOST_SSL_DIR/ca/ca.crt # Assuming UID and GID for postgres user
-
+sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -passin pass:$CA_PASSWORD -subj "/CN=My CA"
 # Generate server key and certificate signing request (CSR)
 sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/server/server.key
 sudo openssl req -new -key $HOST_SSL_DIR/server/server.key -out $HOST_SSL_DIR/server/server.csr -subj "/CN=$DOMAIN"
 sudo openssl x509 -req -in $HOST_SSL_DIR/server/server.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/server/server.crt -days 365 -passin pass:$CA_PASSWORD
-
 # Generate client key and certificate
 sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/client/client.key
-sudo openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/CN=$DOMAIN"
+sudo openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/CN=My Client"
 sudo openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365 -passin pass:$CA_PASSWORD
 
-# Set appropriate permissions and ownership on the host for client SSL files
-sudo chmod 600 $HOST_SSL_DIR/client/*.key
-sudo chmod 644 $HOST_SSL_DIR/client/*.crt
-sudo chown 100:102 $HOST_SSL_DIR/client/*.key $HOST_SSL_DIR/client/*.crt  # Assuming UID 100 and GID 102 for django user
+# Set key and certificate permissions
+# CA
+sudo chmod 600 $HOST_SSL_DIR/ca/ca.key
+sudo chmod 644 $HOST_SSL_DIR/ca/ca.crt
+sudo chown 999:999 $HOST_SSL_DIR/ca/ca.key $HOST_SSL_DIR/ca/ca.crt
+# Server
+sudo chmod 600 $HOST_SSL_DIR/server/server.key
+sudo chmod 644 $HOST_SSL_DIR/server/server.crt
+sudo chown 999:999 $HOST_SSL_DIR/server/server.key $HOST_SSL_DIR/server/server.crt
+# Client
+sudo chmod 600 $HOST_SSL_DIR/client/client.key
+sudo chmod 644 $HOST_SSL_DIR/client/client.crt
+sudo chown 100:102 $HOST_SSL_DIR/client/client.key $HOST_SSL_DIR/client/client.crt
 
-# Ensure the server SSL files are also set correctly
-sudo chmod 600 $HOST_SSL_DIR/server/*.key $HOST_SSL_DIR/server/*.crt
-sudo chown 999:999 $HOST_SSL_DIR/server/*.key $HOST_SSL_DIR/server/*.crt
 
 # PostgreSQL configuration adjustments
 sudo tee $HOST_SSL_DIR/server/postgresql.conf > /dev/null <<EOF
