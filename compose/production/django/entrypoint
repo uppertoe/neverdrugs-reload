@@ -33,15 +33,15 @@ connection_params = {
     "port": "${POSTGRES_PORT}",
 }
 
-use_ssl = ${POSTGRES_USE_SSL}
+use_ssl = ${POSTGRES_USE_SSL} in [True, 'True']
 
 if use_ssl:
     print("We're using SSL")
     ssl_params = {
         "sslmode": "require",
-        "sslrootcert": "/etc/ssl/postgresql/ca.crt",
-        "sslcert": "/etc/ssl/postgresql/client/client.crt",
-        "sslkey": "/etc/ssl/postgresql/client/client.key",
+        "sslrootcert": "${DB_SSLROOTCERT}",
+        "sslcert": "${DB_SSLCERT}",
+        "sslkey": "${DB_SSLKEY}",
     }
 
     connection_params.update(ssl_params)

@@ -22,9 +22,9 @@ DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)  # no
 if env.bool("POSTGRES_USE_SSL", default=False):
     DATABASES["default"]["OPTIONS"] = {
         'sslmode': 'require',
-        'sslrootcert': '/etc/ssl/postgresql/ca.crt',
-        'sslcert': '/etc/ssl/postgresql/client.crt',
-        'sslkey': '/etc/ssl/postgresql/client.key',
+        'sslrootcert': env("DB_SSLROOTCERT"),
+        'sslcert': env("DB_SSLCERT"),
+        'sslkey': env("DB_SSLKEY"),
         }
     print(f'Here\'s the settings.DATABASES: {DATABASES}')
 
