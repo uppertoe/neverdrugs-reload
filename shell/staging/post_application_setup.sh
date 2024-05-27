@@ -23,24 +23,32 @@ sudo apt-get update && sudo apt-get install -y certbot curl openssl|| { echo "Fa
 sudo snap install yq
 
 # Create directories for SSL certificates and keys
-mkdir -p $HOST_SSL_DIR/ca
-mkdir -p $HOST_SSL_DIR/server
-mkdir -p $HOST_SSL_DIR/client
+sudo mkdir -p $HOST_SSL_DIR/ca
+sudo mkdir -p $HOST_SSL_DIR/server
+sudo mkdir -p $HOST_SSL_DIR/client
 
-# Generate server certificates using Certbot
-sudo certbot certonly --standalone -d $DOMAIN --email $NOTIFY_EMAIL --agree-tos --non-interactive || { echo "Certbot certificate generation failed."; exit 1; }
-sudo cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem $HOST_SSL_DIR/server/server.crt
-sudo cp /etc/letsencrypt/live/$DOMAIN/privkey.pem $HOST_SSL_DIR/server/server.key
-sudo chmod 600 $HOST_SSL_DIR/server/*  # Access by Postgres user only
+# Generate CA key and certificate
+sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key -aes256 -pass pass:yourpassword
+sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -passin pass:yourpassword -subj "/CN=$DOMAIN"
 
-# Generate CA and client certificates
-openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key
-openssl req -new -x509 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -days 365 -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=ca.$DOMAIN/emailAddress=$NOTIFY_EMAIL"
+# Generate server key and certificate signing request (CSR)
+sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/server.key
+sudo openssl req -new -key $HOST_SSL_DIR/server.key -out $HOST_SSL_DIR/server.csr -subj "/CN=$DOMAIN"
+sudo openssl x509 -req -in $HOST_SSL_DIR/server.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/server.crt -days 365 -passin pass:yourpassword
 
-openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/client/client.key
-openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=client.$DOMAIN/emailAddress=$NOTIFY_EMAIL"
-openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365
-sudo chmod 644 $HOST_SSL_DIR/client/*  # Read access by other containers
+# Generate client key and certificate
+sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/client/client.key
+sudo openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/CN=$DOMAIN"
+sudo openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365 -passin pass:yourpassword
+
+# Set appropriate permissions and ownership on the host for client SSL files
+sudo chmod 644 $HOST_SSL_DIR/client/*.crt
+sudo chmod 644 $HOST_SSL_DIR/client/*.key
+sudo chown 1000:1000 $HOST_SSL_DIR/client/*.crt $HOST_SSL_DIR/client/*.key
+
+# Ensure the server SSL files are also set correctly
+sudo chmod 600 $HOST_SSL_DIR/server.crt $HOST_SSL_DIR/server.key
+sudo chown 999:999 $HOST_SSL_DIR/server.crt $HOST_SSL_DIR/server.key
 
 # Update Docker Compose file for SSL
 yq eval '.services.postgres.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/server"'", "target": "'"$CONTAINER_SSL_DIR"'"}]' -i $DOCKER_COMPOSE_FILE
@@ -77,18 +85,43 @@ EOF
 
 # Ensure PostgreSQL reads the new configuration files
 docker-compose -f $DOCKER_COMPOSE_FILE down
-docker-compose -f $DOCKER_COMPOSE_FILE up -d postgres
+
+docker-compose -f $DOCKER_COMPOSE_FILE build
 
 # Apply PostgreSQL SSL configuration and restart PostgreSQL
-docker-compose -f $DOCKER_COMPOSE_FILE exec -T postgres bash -c "
+docker-compose -f $DOCKER_COMPOSE_FILE run --rm postgres bash -c "
   cp $CONTAINER_SSL_DIR/postgresql.conf /var/lib/postgresql/data/postgresql.conf &&
   cp $CONTAINER_SSL_DIR/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf &&
   chown postgres:postgres /var/lib/postgresql/data/postgresql.conf /var/lib/postgresql/data/pg_hba.conf &&
   chown -R postgres:postgres $CONTAINER_SSL_DIR
 " || { echo "Failed to apply PostgreSQL SSL configuration."; exit 1; }
 
-# Restart PostgreSQL container to apply the new configuration
-docker-compose -f $DOCKER_COMPOSE_FILE restart postgres || { echo "Failed to restart PostgreSQL container."; exit 1; }
+# Django container
+docker-compose -f $DOCKER_COMPOSE_FILE run --rm django bash -c "
+  chmod 644 /etc/ssl/postgresql/client.crt &&
+  chmod 644 /etc/ssl/postgresql/client.key
+"
+
+# Celeryworker container
+docker-compose -f $DOCKER_COMPOSE_FILE run --rm celeryworker bash -c "
+  chmod 644 /etc/ssl/postgresql/client.crt &&
+  chmod 644 /etc/ssl/postgresql/client.key
+"
+
+# Celerybeat container
+docker-compose -f $DOCKER_COMPOSE_FILE run --rm celerybeat bash -c "
+  chmod 644 /etc/ssl/postgresql/client.crt &&
+  chmod 644 /etc/ssl/postgresql/client.key
+"
+
+# Flower container
+docker-compose -f $DOCKER_COMPOSE_FILE run --rm flower bash -c "
+  chmod 644 /etc/ssl/postgresql/client.crt &&
+  chmod 644 /etc/ssl/postgresql/client.key
+"
+
+docker-compose -f $DOCKER_COMPOSE_FILE up -d
+
 
 # Create renewal script
 tee $RENEWAL_SCRIPT > /dev/null <<EOF
