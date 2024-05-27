@@ -92,7 +92,7 @@ hostssl all             all             ::/0                    md5
 EOF
 
 # Build the Docker images
-docker compose -f $COMPOSE_FILE build --no-cache
+docker compose -f $DOCKER_COMPOSE_FILE build --no-cache
 
 # Apply PostgreSQL SSL configuration and restart PostgreSQL
 docker-compose -f $DOCKER_COMPOSE_FILE run --rm postgres bash -c "
