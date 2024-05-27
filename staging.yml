@@ -15,6 +15,14 @@ services:
     env_file:
       - ./.envs/.production/.django
       - ./.envs/.production/.postgres
+    volumes:
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/client
+        target: /etc/ssl/postgresql
+    environment:
+      DB_SSLROOTCERT: /etc/ssl/postgresql/ca.crt
+      DB_SSLCERT: /etc/ssl/postgresql/client.crt
+      DB_SSLKEY: /etc/ssl/postgresql/client.key
 
   postgres:
     build:
@@ -28,8 +36,15 @@ services:
       - type: bind
         source: /var/lib/docker/pgbackups/backups
         target: /backups
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/server
+        target: /etc/ssl/postgresql
     env_file:
       - ./.envs/.production/.postgres
+    environment:
+      POSTGRES_SSL_KEY_FILE: /etc/ssl/postgresql/server.key
+      POSTGRES_SSL_CERT_FILE: /etc/ssl/postgresql/server.crt
+      POSTGRES_SSL: on
 
   traefik:
     build:
@@ -69,7 +84,14 @@ services:
       dockerfile: ./compose/production/aws/Dockerfile
     env_file:
       - ./.envs/.production/.django
+    environment:
+      DB_SSLROOTCERT: /etc/ssl/postgresql/ca.crt
+      DB_SSLCERT: /etc/ssl/postgresql/client.crt
+      DB_SSLKEY: /etc/ssl/postgresql/client.key
     volumes:
       - type: bind
         source: /var/lib/docker/pgbackups/backups
         target: /backups:z
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/client
+        target: /etc/ssl/postgresql

@@ -33,7 +33,9 @@ connection_params = {
     "port": "${POSTGRES_PORT}",
 }
 
-if ${POSTGRES_USE_SSL}:
+use_ssl = ${POSTGRES_USE_SSL}.lower() in ['true', '1', 'yes']
+
+if use_ssl:
     print("We're using SSL")
     ssl_params = {
         "sslmode": "require",

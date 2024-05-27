@@ -29,5 +29,5 @@ echo "Please use scp to copy your .env files to the server. Example:"
 echo "scp .envs/.production/.django $VPS_USER@$VPS_IP:$REPO_DIR/.envs/.production/.django"
 echo "scp .envs/.production/.postgres $VPS_USER@$VPS_IP:$REPO_DIR/.envs/.production/.postgres"
 
-echo "Once copied, run docker_build.sh"
+echo "Once copied, run post_application_setup.sh"
 
