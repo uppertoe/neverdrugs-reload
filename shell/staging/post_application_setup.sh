@@ -5,6 +5,8 @@ read -p "Enter the email to be notified on failure: " NOTIFY_EMAIL
 read -p "Enter the Sendgrid API key: " SENDGRID_API_KEY
 read -p "Enter the domain for SSL certificates: " DOMAIN
 read -p "Enter the Docker Compose file to be used: " DOCKER_COMPOSE_FILE
+# Prompt for the CA key password
+read -s -p "Enter the password for the CA key: " CA_PASSWORD
 
 # Variables
 HOST_SSL_DIR="$HOME/ssl/postgresql"
@@ -28,27 +30,31 @@ sudo mkdir -p $HOST_SSL_DIR/server
 sudo mkdir -p $HOST_SSL_DIR/client
 
 # Generate CA key and certificate
-sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key -aes256 -pass pass:yourpassword
-sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -passin pass:yourpassword -subj "/CN=$DOMAIN"
+sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/ca/ca.key -aes256 -pass pass:$CA_PASSWORD
+sudo openssl req -new -x509 -days 365 -key $HOST_SSL_DIR/ca/ca.key -out $HOST_SSL_DIR/ca/ca.crt -passin pass:$CA_PASSWORD -subj "/CN=$DOMAIN"
+
+# Set appropriate permissions and ownership for the CA key
+sudo chmod 600 $HOST_SSL_DIR/ca/ca.key
+sudo chown 999:999 $HOST_SSL_DIR/ca/ca.key  # Assuming UID and GID for postgres user
 
 # Generate server key and certificate signing request (CSR)
-sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/server.key
-sudo openssl req -new -key $HOST_SSL_DIR/server.key -out $HOST_SSL_DIR/server.csr -subj "/CN=$DOMAIN"
-sudo openssl x509 -req -in $HOST_SSL_DIR/server.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/server.crt -days 365 -passin pass:yourpassword
+sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/server/server.key
+sudo openssl req -new -key $HOST_SSL_DIR/server/server.key -out $HOST_SSL_DIR/server/server.csr -subj "/CN=$DOMAIN"
+sudo openssl x509 -req -in $HOST_SSL_DIR/server/server.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/server/server.crt -days 365 -passin pass:$CA_PASSWORD
 
 # Generate client key and certificate
 sudo openssl genpkey -algorithm RSA -out $HOST_SSL_DIR/client/client.key
 sudo openssl req -new -key $HOST_SSL_DIR/client/client.key -out $HOST_SSL_DIR/client/client.csr -subj "/CN=$DOMAIN"
-sudo openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365 -passin pass:yourpassword
+sudo openssl x509 -req -in $HOST_SSL_DIR/client/client.csr -CA $HOST_SSL_DIR/ca/ca.crt -CAkey $HOST_SSL_DIR/ca/ca.key -CAcreateserial -out $HOST_SSL_DIR/client/client.crt -days 365 -passin pass:$CA_PASSWORD
 
 # Set appropriate permissions and ownership on the host for client SSL files
+sudo chmod 600 $HOST_SSL_DIR/client/*.key
 sudo chmod 644 $HOST_SSL_DIR/client/*.crt
-sudo chmod 644 $HOST_SSL_DIR/client/*.key
-sudo chown 1000:1000 $HOST_SSL_DIR/client/*.crt $HOST_SSL_DIR/client/*.key
+sudo chown 100:102 $HOST_SSL_DIR/client/*.key $HOST_SSL_DIR/client/*.crt  # Assuming UID 100 and GID 102 for django user
 
 # Ensure the server SSL files are also set correctly
-sudo chmod 600 $HOST_SSL_DIR/server.crt $HOST_SSL_DIR/server.key
-sudo chown 999:999 $HOST_SSL_DIR/server.crt $HOST_SSL_DIR/server.key
+sudo chmod 600 $HOST_SSL_DIR/server/*.key $HOST_SSL_DIR/server/*.crt
+sudo chown 999:999 $HOST_SSL_DIR/server/*.key $HOST_SSL_DIR/server/*.crt
 
 # Update Docker Compose file for SSL
 yq eval '.services.postgres.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/server"'", "target": "'"$CONTAINER_SSL_DIR"'"}]' -i $DOCKER_COMPOSE_FILE
