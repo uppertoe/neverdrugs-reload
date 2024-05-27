@@ -25,15 +25,27 @@ import psycopg
 suggest_unrecoverable_after = 30
 start = time.time()
 
+connection_params = {
+    "dbname": "${POSTGRES_DB}",
+    "user": "${POSTGRES_USER}",
+    "password": "${POSTGRES_PASSWORD}",
+    "host": "${POSTGRES_HOST}",
+    "port": "${POSTGRES_PORT}",
+}
+
+if ${POSTGRES_USE_SSL}:
+    ssl_params = {
+        "sslmode": "require",
+        "sslrootcert": "/etc/ssl/postgresql/ca.crt",
+        "sslcert": "/etc/ssl/postgresql/client/client.crt",
+        "sslkey": "/etc/ssl/postgresql/client/client.key",
+    }
+
+    connection_params.update(ssl_params)
+
 while True:
     try:
-        psycopg.connect(
-            dbname="${POSTGRES_DB}",
-            user="${POSTGRES_USER}",
-            password="${POSTGRES_PASSWORD}",
-            host="${POSTGRES_HOST}",
-            port="${POSTGRES_PORT}",
-        )
+        psycopg.connect(connection_params)
         break
     except psycopg.OperationalError as error:
         sys.stderr.write("Waiting for PostgreSQL to become available...\n")

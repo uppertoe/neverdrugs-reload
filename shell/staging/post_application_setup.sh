@@ -64,15 +64,9 @@ yq eval '.services.postgres.environment += {"POSTGRES_SSL": "on"}' -i $DOCKER_CO
 
 # Ensure all services use the CA certificate to verify the server certificate
 yq eval '.services.django.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.celeryworker.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.celerybeat.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.flower.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
 yq eval '.services.awscli.volumes += [{"type": "bind", "source": "'"$HOST_SSL_DIR/client"'", "target": "/etc/ssl/postgresql"}]' -i $DOCKER_COMPOSE_FILE
 
 yq eval '.services.django.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.celeryworker.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.celerybeat.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
-yq eval '.services.flower.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
 yq eval '.services.awscli.environment += {"DB_SSLROOTCERT": "/etc/ssl/postgresql/ca.crt", "DB_SSLCERT": "/etc/ssl/postgresql/client.crt", "DB_SSLKEY": "/etc/ssl/postgresql/client.key"}' -i $DOCKER_COMPOSE_FILE
 
 # PostgreSQL configuration adjustments
