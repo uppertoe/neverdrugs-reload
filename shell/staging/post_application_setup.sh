@@ -1,5 +1,28 @@
 #!/bin/bash
 
+# Ensure that compose/production/django/entrypoint has been edited
+# to include ssl parameters to the postgres connector
+
+    #connection_params = {
+    #    "dbname": "${POSTGRES_DB}",
+    #    "user": "${POSTGRES_USER}",
+    #    "password": "${POSTGRES_PASSWORD}",
+    #    "host": "${POSTGRES_HOST}",
+    #    "port": "${POSTGRES_PORT}",
+    #}
+
+    #if ${POSTGRES_USE_SSL}:
+    #    ssl_params = {
+    #        "sslmode": "require",
+    #        "sslrootcert": "/etc/ssl/postgresql/ca.crt",
+    #        "sslcert": "/etc/ssl/postgresql/client/client.crt",
+    #        "sslkey": "/etc/ssl/postgresql/client/client.key",
+    #    }
+
+    #    connection_params.update(**ssl_params)
+
+# Set POSTGRES_USE_SSL=True in .envs/.production/.django
+
 # Prompt for necessary variables
 read -p "Enter the email to be notified on failure: " NOTIFY_EMAIL
 read -p "Enter the Sendgrid API key: " SENDGRID_API_KEY

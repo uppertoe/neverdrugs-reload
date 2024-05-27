@@ -41,7 +41,7 @@ if ${POSTGRES_USE_SSL}:
         "sslkey": "/etc/ssl/postgresql/client/client.key",
     }
 
-    connection_params.update(ssl_params)
+    connection_params.update(**ssl_params)
 
 while True:
     try:
