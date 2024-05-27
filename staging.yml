@@ -17,12 +17,11 @@ services:
       - ./.envs/.production/.postgres
     volumes:
       - type: bind
-        source: /home/uppertoe/ssl/postgresql/
-        target: /etc/ssl/postgresql
-    environment:
-      DB_SSLROOTCERT: /etc/ssl/postgresql/ca/ca.crt
-      DB_SSLCERT: /etc/ssl/postgresql/client/client.crt
-      DB_SSLKEY: /etc/ssl/postgresql/client/client.key
+        source: /home/uppertoe/ssl/postgresql/ca
+        target: /etc/ssl/postgresql/ca
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/client
+        target: /etc/ssl/postgresql/client
 
   postgres:
     build:
@@ -37,14 +36,19 @@ services:
         source: /var/lib/docker/pgbackups/backups
         target: /backups
       - type: bind
+        source: /home/uppertoe/ssl/postgresql/ca
+        target: /etc/ssl/postgresql/ca
+      - type: bind
         source: /home/uppertoe/ssl/postgresql/server
-        target: /etc/ssl/postgresql
+        target: /etc/ssl/postgresql/server
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/server/postgresql.conf
+        target: /var/lib/postgresql/data/postgresql.conf
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/server/pg_hba.conf
+        target: /var/lib/postgresql/data/pg_hba.conf
     env_file:
       - ./.envs/.production/.postgres
-    environment:
-      POSTGRES_SSL_KEY_FILE: /etc/ssl/postgresql/server.key
-      POSTGRES_SSL_CERT_FILE: /etc/ssl/postgresql/server.crt
-      POSTGRES_SSL: on
 
   traefik:
     build:
@@ -84,14 +88,13 @@ services:
       dockerfile: ./compose/production/aws/Dockerfile
     env_file:
       - ./.envs/.production/.django
-    environment:
-      DB_SSLROOTCERT: /etc/ssl/postgresql/ca/ca.crt
-      DB_SSLCERT: /etc/ssl/postgresql/client/client.crt
-      DB_SSLKEY: /etc/ssl/postgresql/client/client.key
     volumes:
       - type: bind
         source: /var/lib/docker/pgbackups/backups
         target: /backups:z
       - type: bind
-        source: /home/uppertoe/ssl/postgresql
-        target: /etc/ssl/postgresql
+        source: /home/uppertoe/ssl/postgresql/ca
+        target: /etc/ssl/postgresql/ca
+      - type: bind
+        source: /home/uppertoe/ssl/postgresql/client
+        target: /etc/ssl/postgresql/client

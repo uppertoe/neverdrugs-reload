@@ -31,7 +31,7 @@ certificatesResolvers:
 http:
   routers:
     web-secure-router:
-      rule: 'Host(`neverdrugs.org`) || Host(`dev.neverdrugs.org`)'
+      rule: 'Host(`neverdrugs.org`) || Host(`dev.neverdrugs.org`) || Host(`staging.neverdrugs.org`)'
       entryPoints:
         - web-secure
       middlewares:
@@ -42,7 +42,7 @@ http:
         certResolver: letsencrypt
 
     flower-secure-router:
-      rule: 'Host(`neverdrugs.org`) || Host(`dev.neverdrugs.org`)'
+      rule: 'Host(`neverdrugs.org`) || Host(`dev.neverdrugs.org`) || Host(`staging.neverdrugs.org`)'
       entryPoints:
         - flower
       service: flower

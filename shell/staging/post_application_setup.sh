@@ -21,7 +21,11 @@
 
     #    connection_params.update(**ssl_params)
 
-# Set POSTGRES_USE_SSL=True in .envs/.production/.django
+# Set ENVS .envs/.production/.django
+#POSTGRES_USE_SSL=False
+#DB_SSLROOTCERT=/etc/ssl/postgresql/ca/ca.crt
+#DB_SSLCERT=/etc/ssl/postgresql/client/client.crt
+#DB_SSLKEY=/etc/ssl/postgresql/client/client.key
 
 # Prompt for necessary variables
 read -p "Enter the domain for SSL certificates: " DOMAIN
@@ -32,18 +36,12 @@ read -s -p "Enter the password for the CA key: " CA_PASSWORD
 # Variables
 HOST_SSL_DIR="$HOME/ssl/postgresql"
 CONTAINER_SSL_DIR="/etc/ssl/postgresql"
-RENEWAL_SCRIPT="$HOME/renew_ssl.sh"
-UPDATE_SCRIPT="$HOME/update_db.sh"
-SCHEDULE_TIME="17:00:00"  # This is 03:00 AEST (UTC+10:00)
 
 REPO_DIR=$HOME/neverdrugs-reload
 cd $REPO_DIR
 
 # Update and install necessary packages
 sudo apt-get update && sudo apt-get install -y certbot curl openssl|| { echo "Failed to install required packages."; exit 1; }
-
-# Install yq using snap
-sudo snap install yq
 
 # Create directories for SSL certificates and keys
 sudo mkdir -p $HOST_SSL_DIR/ca
@@ -95,24 +93,16 @@ EOF
 # Build the Docker images
 docker compose -f $DOCKER_COMPOSE_FILE build --no-cache
 
-# Apply PostgreSQL SSL configuration and restart PostgreSQL
-docker-compose -f $DOCKER_COMPOSE_FILE run --rm postgres bash -c "
-  cp $CONTAINER_SSL_DIR/postgresql.conf /var/lib/postgresql/data/postgresql.conf &&
-  cp $CONTAINER_SSL_DIR/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf &&
-  chown postgres:postgres /var/lib/postgresql/data/postgresql.conf /var/lib/postgresql/data/pg_hba.conf &&
-  chown -R postgres:postgres $CONTAINER_SSL_DIR
-" || { echo "Failed to apply PostgreSQL SSL configuration."; exit 1; }
-
 # Run migrations and collectstatic
-docker compose -f $COMPOSE_FILE run --rm django python manage.py migrate
-docker compose -f $COMPOSE_FILE run --rm django python manage.py collectstatic --noinput
+docker compose -f $DOCKER_COMPOSE_FILE run --rm django python manage.py migrate
+docker compose -f $DOCKER_COMPOSE_FILE run --rm django python manage.py collectstatic --noinput
 
 echo "Create SuperUser"
 # Create Django superuser interactively
-docker compose -f $COMPOSE_FILE run --rm django python manage.py createsuperuser
+docker compose -f $DOCKER_COMPOSE_FILE run --rm django python manage.py createsuperuser
 
 # Start the application
-docker compose -f $COMPOSE_FILE up -d
+docker compose -f $DOCKER_COMPOSE_FILE up -d
 
 
 
