@@ -22,6 +22,7 @@ services:
       - type: bind
         source: /home/uppertoe/ssl/postgresql/client
         target: /etc/ssl/postgresql/client
+    command: /start
 
   postgres:
     build:
